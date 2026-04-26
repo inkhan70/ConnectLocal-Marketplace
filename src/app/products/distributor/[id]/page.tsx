@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin, Loader2, Package, MessageSquare, Heart } from "lucide-react";
+import { MapPin, Loader2, Package, MessageSquare, Heart, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/contexts/LanguageContext";
 import images from '@/app/lib/placeholder-images.json';
@@ -66,7 +66,6 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      // Using chatSnap to avoid shadowing the 'doc' import from Firestore
       for (const chatSnap of querySnapshot.docs) {
           const chatData = chatSnap.data();
           if (chatData.participants.includes(business.uid)) {

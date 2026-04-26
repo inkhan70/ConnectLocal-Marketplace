@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import images from '@/app/lib/placeholder-images.json';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserProfile } from '@/contexts/AuthContext';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp, doc, getDocs } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
@@ -84,7 +84,7 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
         varietyId: selectedVariety.id,
         varietyName: selectedVariety.name,
         price: selectedVariety.price,
-        image: selectedVariety.image || '',
+        image: selectedVariety.image || images.products.generic,
         quantity: quantity,
         userId: product.userId
     });
@@ -110,7 +110,6 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      // Using chatSnap to avoid shadowing the 'doc' import from firestore
       for (const chatSnap of querySnapshot.docs) {
           const chatData = chatSnap.data();
           if (chatData.participants.includes(product.userId)) {
@@ -125,7 +124,7 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
       }
       
       const businessUserDoc = await getDocs(query(collection(firestore, "users"), where("uid", "==", product.userId)));
-      const businessUserProfile = businessUserDoc.docs[0]?.data();
+      const businessUserProfile = businessUserDoc.docs[0]?.data() as UserProfile | undefined;
 
       if (!businessUserProfile) {
           throw new Error("Could not find business owner's profile.");
