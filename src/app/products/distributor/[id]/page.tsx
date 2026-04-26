@@ -66,10 +66,11 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      for (const docSnap of querySnapshot.docs) {
-          const chatData = docSnap.data();
+      // Using chatSnap to avoid shadowing the 'doc' import from Firestore
+      for (const chatSnap of querySnapshot.docs) {
+          const chatData = chatSnap.data();
           if (chatData.participants.includes(business.uid)) {
-              existingChatId = docSnap.id;
+              existingChatId = chatSnap.id;
               break;
           }
       }

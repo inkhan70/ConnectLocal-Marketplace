@@ -26,7 +26,7 @@ interface Variety {
   price: number;
   image?: string;
   dataAiHint?: string;
-  manufacturer?: string; // Adding optional manufacturer
+  manufacturer?: string; 
 }
 
 interface Product {
@@ -110,10 +110,11 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      for (const doc of querySnapshot.docs) {
-          const chat = doc.data();
-          if (chat.participants.includes(product.userId)) {
-              existingChatId = doc.id;
+      // Using chatSnap to avoid shadowing the 'doc' import from firestore
+      for (const chatSnap of querySnapshot.docs) {
+          const chatData = chatSnap.data();
+          if (chatData.participants.includes(product.userId)) {
+              existingChatId = chatSnap.id;
               break;
           }
       }
@@ -346,5 +347,3 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
     </div>
   );
 }
-
-    
