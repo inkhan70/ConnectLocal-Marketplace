@@ -110,10 +110,10 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      for (const chatSnap of querySnapshot.docs) {
-          const chatData = chatSnap.data();
+      for (const chatDoc of querySnapshot.docs) {
+          const chatData = chatDoc.data();
           if (chatData.participants.includes(product.userId)) {
-              existingChatId = chatSnap.id;
+              existingChatId = chatDoc.id;
               break;
           }
       }

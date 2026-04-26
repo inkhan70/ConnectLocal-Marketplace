@@ -66,10 +66,10 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
       const querySnapshot = await getDocs(q);
       
       let existingChatId: string | null = null;
-      for (const chatSnap of querySnapshot.docs) {
-          const chatData = chatSnap.data();
+      for (const chatDoc of querySnapshot.docs) {
+          const chatData = chatDoc.data();
           if (chatData.participants.includes(business.uid)) {
-              existingChatId = chatSnap.id;
+              existingChatId = chatDoc.id;
               break;
           }
       }

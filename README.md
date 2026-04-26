@@ -1,44 +1,43 @@
 
 # ConnectLocal: Professional B2B Marketplace
 
-Welcome to ConnectLocal (Business_web), a high-scale B2B and B2C platform connecting producers, wholesalers, distributors, and shopkeepers.
+Welcome to **ConnectLocal**, a high-scale B2B platform connecting producers, wholesalers, distributors, and shopkeepers. This project is ready for professional scaling and production deployment.
 
-## 🚀 Professional Migration Guide (Post-Firebase Studio)
+## 🚀 Getting Started Locally
 
-Your prototype is ready for production. To continue building locally, follow these steps:
+To continue building ConnectLocal on your own machine, follow these simple steps:
 
-### 1. Setup Your Environment
-*   **Editor:** Download [Cursor](https://cursor.com/) or [VS Code](https://code.visualstudio.com/).
-*   **Clone:** Use `git clone <your-repo-url>` to bring the code to your machine.
-*   **Dependencies:** Run `npm install` in your project folder.
+1.  **Clone the Repo:** `git clone <your-repo-url>`
+2.  **Install Dependencies:** `npm install`
+3.  **Run Development Server:** `npm run dev`
+4.  **Build for Production:** `npm run build`
 
-### 2. Firebase Local Suite
-*   Install Firebase CLI: `npm install -g firebase-tools`
-*   Initialize: `firebase init` (Link to your existing project).
-*   **Pro Tip:** Use `firebase emulators:start` to test your app locally without touching your live data.
+## 🛠 Project Roadmap
+
+### Phase 1: Commercial Foundations
+*   **Secure Payments:** Integrate [Stripe](https://stripe.com) to handle B2B transactions.
+*   **Escrow System:** Implement logic to release funds only when the 14-digit pickup code is verified.
+
+### Phase 2: Mobile Engagement
+*   **PWA:** Add a `manifest.json` and service worker to make the app installable on Android and iOS.
+*   **FCM Notifications:** Use Firebase Cloud Messaging to alert users of new chat messages and order updates.
+
+### Phase 3: AI-Driven Logistics
+*   **Smart Sourcing:** Use Genkit to analyze price trends and suggest the cheapest distributors.
+*   **Auto-Inventory:** Use Gemini to scan invoices/receipts to update product counts automatically.
+
+## 📦 Tech Stack
+*   **Framework:** Next.js (App Router)
+*   **Styling:** Tailwind CSS + ShadCN UI
+*   **Database & Auth:** Firebase (Firestore / Auth / Storage)
+*   **AI:** Genkit AI (Gemini 2.0 Flash)
 
 ---
 
-## 🛠 Feature Roadmap for Production
+## 🏗 Migration Guide (Post-Firebase Studio)
 
-### Phase 1: Commercial Integration
-*   **Payments:** Add [Stripe](https://stripe.com) for secure B2B transactions.
-*   **Escrow:** Implement a system where funds are released only after the 14-digit pickup code is verified.
+If you are seeing authentication errors when pushing to GitHub from the terminal, follow these steps:
 
-### Phase 2: Mobile & Engagement
-*   **PWA:** Add a `manifest.json` to make the app installable on Android/iOS.
-*   **Notifications:** Use Firebase Cloud Messaging (FCM) to alert shopkeepers of new wholesale deals.
-
-### Phase 3: AI Logistics (Genkit)
-*   **Smart Sourcing:** Use AI to suggest the cheapest distributors based on the user's location.
-*   **Auto-Inventory:** Use Gemini to scan invoices and automatically update product counts.
-
----
-
-## Core Features
-*   **Multi-Role Filtering:** Seamlessly switch between Producer, Wholesaler, and Shopkeeper views.
-*   **Shared Media Library:** Category-specific image banks for lightning-fast listings.
-*   **Real-time Chat:** Direct communication between businesses.
-*   **Location Intelligence:** Automatic distance calculation for local sourcing.
-
-Built with **Next.js, Tailwind CSS, Genkit AI, and Firebase.**
+1.  **Create a GitHub PAT:** Go to GitHub Settings -> Developer Settings -> Personal Access Tokens (Classic). Create a token with **`repo`** scopes.
+2.  **Use as Password:** When `git push` asks for your password, paste the token instead.
+3.  **Local Tools:** We highly recommend using **Cursor IDE** for the best AI-assisted development experience.
