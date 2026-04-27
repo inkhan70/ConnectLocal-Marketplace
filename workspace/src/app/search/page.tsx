@@ -13,6 +13,7 @@ import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { UserProfile } from '@/contexts/AuthContext';
 import { collection, query, where, and, or } from 'firebase/firestore';
+import { Badge } from "@/components/ui/badge";
 
 interface Variety {
     id: string;

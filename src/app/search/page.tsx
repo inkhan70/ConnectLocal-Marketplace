@@ -14,6 +14,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { UserProfile } from '@/contexts/AuthContext';
 import { collection, query, where, and, or } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
+
 interface Variety {
     id: string;
     name: string;
