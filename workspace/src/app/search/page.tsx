@@ -46,10 +46,6 @@ function SearchResultsContent() {
     const city = searchParams.get('city') || '';
     const firestore = useFirestore();
     
-    // NOTE: Firestore does not support full-text search on its own.
-    // This implementation can only perform basic prefix matching on a single field.
-    // For a real-world app, a third-party search service like Algolia or Typesense would be necessary.
-    
     const productsQuery = useMemoFirebase(() => {
         if (!searchTerm) return null;
         return query(collection(firestore, 'products'), 
@@ -68,9 +64,8 @@ function SearchResultsContent() {
         
         const allFilters = [...nameFilter, ...cityFilter];
 
-        if (allFilters.length === 0) return null; // Don't search if no criteria
+        if (allFilters.length === 0) return null; 
         
-        // This may require composite indexes in Firestore, which Firebase will prompt you to create in the console logs.
         return query(q, ...allFilters);
 
     }, [firestore, searchTerm, city]);
@@ -82,13 +77,12 @@ function SearchResultsContent() {
     
     useEffect(() => {
         const results: SearchResult[] = [];
-        if (productResults && !city) { // Only show product results if city is not being filtered
+        if (productResults && !city) { 
             results.push(...productResults.map(p => ({ type: 'product' as const, data: p })));
         }
         if (businessResults) {
             results.push(...businessResults.map(b => ({ type: 'business' as const, data: b })));
         }
-        // Simple combination, could add more sophisticated sorting later
         setCombinedResults(results);
     }, [productResults, businessResults, city]);
     
