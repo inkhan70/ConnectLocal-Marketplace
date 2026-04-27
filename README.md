@@ -1,43 +1,35 @@
 
-# ConnectLocal: Professional B2B Marketplace
+# ConnectLocal: Professional B2B & B2C Marketplace
 
-Welcome to **ConnectLocal**, a high-scale B2B platform connecting producers, wholesalers, distributors, and shopkeepers. This project is ready for professional scaling and production deployment.
+ConnectLocal is a robust platform designed to bridge the gap between local producers, wholesalers, distributors, shopkeepers, and customers. 
 
-## 🚀 Getting Started Locally
+## 🌟 Key Features
+- **City-Specific Search:** Find exactly what you need in your immediate vicinity.
+- **Proximity-Based Listings:** Automatic discovery of businesses within 100km.
+- **Secure Transaction Verification:** 14-digit pickup codes for safe product retrieval.
+- **Ghost Coin Rewards:** Earn loyalty coins for every 4 items purchased.
+- **AI-Powered Branding:** Instant product descriptions and business slogans using Genkit AI.
 
-To continue building ConnectLocal on your own machine, follow these simple steps:
+## 🛠 Tech Stack
+- **Framework:** Next.js (App Router)
+- **Database & Auth:** Firebase (Firestore / Storage / Auth)
+- **AI Integration:** Genkit AI (Google Gemini 2.0 Flash)
+- **UI Components:** ShadCN UI + Tailwind CSS
 
-1.  **Clone the Repo:** `git clone <your-repo-url>`
-2.  **Install Dependencies:** `npm install`
-3.  **Run Development Server:** `npm run dev`
-4.  **Build for Production:** `npm run build`
+## 🚀 Moving to Production (Migration Guide)
+This project was prototyped in Firebase Studio and is now ready for production scaling.
 
-## 🛠 Project Roadmap
+### Local Development Setup
+1. **Clone the Repo:** `git clone <your-repo-url>`
+2. **Install Dependencies:** `npm install`
+3. **Run Dev Server:** `npm run dev`
+4. **Build Check:** `npm run build`
 
-### Phase 1: Commercial Foundations
-*   **Secure Payments:** Integrate [Stripe](https://stripe.com) to handle B2B transactions.
-*   **Escrow System:** Implement logic to release funds only when the 14-digit pickup code is verified.
-
-### Phase 2: Mobile Engagement
-*   **PWA:** Add a `manifest.json` and service worker to make the app installable on Android and iOS.
-*   **FCM Notifications:** Use Firebase Cloud Messaging to alert users of new chat messages and order updates.
-
-### Phase 3: AI-Driven Logistics
-*   **Smart Sourcing:** Use Genkit to analyze price trends and suggest the cheapest distributors.
-*   **Auto-Inventory:** Use Gemini to scan invoices/receipts to update product counts automatically.
-
-## 📦 Tech Stack
-*   **Framework:** Next.js (App Router)
-*   **Styling:** Tailwind CSS + ShadCN UI
-*   **Database & Auth:** Firebase (Firestore / Auth / Storage)
-*   **AI:** Genkit AI (Gemini 2.0 Flash)
+### Recommended Roadmap
+1. **Payment Integration:** Set up **Stripe** or a local mobile money gateway.
+2. **Mobile Support:** Convert to a **Progressive Web App (PWA)** for home-screen installation.
+3. **Notifications:** Use **Firebase Cloud Messaging (FCM)** for order and chat alerts.
+4. **Escrow Logic:** Implement a system to hold funds until the pickup code is verified.
 
 ---
-
-## 🏗 Migration Guide (Post-Firebase Studio)
-
-If you are seeing authentication errors when pushing to GitHub from the terminal, follow these steps:
-
-1.  **Create a GitHub PAT:** Go to GitHub Settings -> Developer Settings -> Personal Access Tokens (Classic). Create a token with **`repo`** scopes.
-2.  **Use as Password:** When `git push` asks for your password, paste the token instead.
-3.  **Local Tools:** We highly recommend using **Cursor IDE** for the best AI-assisted development experience.
+*Created with Firebase Studio. Ready for professional development.*
