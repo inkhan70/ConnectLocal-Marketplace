@@ -4,16 +4,14 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin, Loader2, Package, MessageSquare, Heart } from "lucide-react";
+import { MapPin, Loader2, Package, MessageSquare, Heart, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/contexts/LanguageContext";
 import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-import { useEffect } from "react";
 import { ProductSearch } from "@/components/ProductSearch";
-import { useAuth } from "@/contexts/AuthContext";
-import type { UserProfile } from "@/contexts/AuthContext";
+import { useAuth, UserProfile } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
@@ -219,10 +217,9 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-muted/50 rounded-lg">
-              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mt-4">No Products Found</h3>
-              <p className="text-muted-foreground mt-2">This business has not listed any products yet.</p>
+          <div className="text-center py-12 bg-muted/30 rounded-lg">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
+            <h3 className="mt-4 text-lg font-medium">{t('distributor_inventory.no_products')}</h3>
           </div>
         )}
       </div>

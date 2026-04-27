@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link";
@@ -209,7 +210,7 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                     <Button asChild className="w-full">
-                        <Link href={`/products/item/${product.id}`}>{t('common.view_details')}</Link>
+                        <Link href={`/products/item/${product.id}`}>{t('distributor_inventory.view_details')}</Link>
                     </Button>
                 </CardFooter>
               </Card>
