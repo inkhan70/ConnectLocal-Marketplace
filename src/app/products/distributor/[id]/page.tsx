@@ -195,8 +195,7 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
                 <CardHeader className="p-0">
                   <div className="relative h-48 w-full">
                     <Image 
-                        src={product.varieties?.[0]?.image || images.products.generic} 
-                        alt={product.name}
+                        src={product.varieties?.[0]?.image || images.products.                        alt={product.name}
                         fill
                         className="object-cover"
                     />
