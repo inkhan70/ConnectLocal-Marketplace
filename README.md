@@ -34,3 +34,4 @@ This project was prototyped in Firebase Studio and is ready for production scali
 
 ---
 *Created with Firebase Studio. Ready for professional development.*
+# ConnectLocal-Marketplace
