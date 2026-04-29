@@ -198,6 +198,7 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
                         alt={product.name}
                         fill
                         className="object-cover"
+                        data-ai-hint="product image"
                     />
                   </div>
                 </CardHeader>
