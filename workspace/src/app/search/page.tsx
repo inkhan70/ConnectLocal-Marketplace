@@ -7,13 +7,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, SearchX, Store, Package } from 'lucide-react';
+import { MapPin, ArrowRight, Loader2, Store, Heart, Package, SearchX } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
 import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { UserProfile } from '@/contexts/AuthContext';
-import { collection, query, where, and, or } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
+
+// Combine Product and Business into a single result type
+type SearchResult = 
+    | { type: 'product'; data: Product }
+    | { type: 'business'; data: UserProfile };
 
 interface Variety {
     id: string;
@@ -32,11 +37,6 @@ interface Product {
     userId?: string;
     varieties: Variety[];
 }
-
-// Combine Product and Business into a single result type
-type SearchResult = 
-    | { type: 'product'; data: Product }
-    | { type: 'business'; data: UserProfile };
 
 
 function SearchResultsContent() {

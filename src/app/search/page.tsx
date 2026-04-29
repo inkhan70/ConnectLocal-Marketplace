@@ -11,8 +11,8 @@ import { MapPin, ArrowRight, Loader2, Store, Heart, Package, SearchX } from "luc
 import { useLanguage } from '@/contexts/LanguageContext';
 import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { UserProfile } from '@/contexts/AuthContext';
-import { collection, query, where, and, or } from 'firebase/firestore';
+import type { UserProfile } from '@/contexts/AuthContext';
+import { collection, query, where } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 
 // Combine Product and Business into a single result type
