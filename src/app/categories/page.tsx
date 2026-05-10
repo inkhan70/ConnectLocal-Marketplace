@@ -132,7 +132,7 @@ export default function CategoriesPage() {
                                         <AccordionTrigger className="hover:no-underline p-0">
                                             <CardContent className="p-6 flex flex-col items-center justify-center w-full">
                                                 <IconComponent className="h-12 w-12 mb-4 text-primary group-hover:text-accent transition-colors" />
-                                                <h3 className="text-lg font-bold font-headline">{t(category.name)}</h3>
+                                                <h3 className="text-lg font-bold font-headline">{category.name}</h3>
                                             </CardContent>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-4 px-4">
@@ -156,7 +156,7 @@ export default function CategoriesPage() {
                                 <Card className="text-center hover:shadow-xl hover:-translate-y-1 transition-transform duration-300 ease-in-out h-full">
                                 <CardContent className="p-6 flex flex-col items-center justify-center">
                                     <IconComponent className="h-12 w-12 mb-4 text-primary group-hover:text-accent transition-colors" />
-                                    <h3 className="text-lg font-bold font-headline">{t(category.name)}</h3>
+                                    <h3 className="text-lg font-bold font-headline">{category.name}</h3>
                                 </CardContent>
                                 </Card>
                             </Link>
