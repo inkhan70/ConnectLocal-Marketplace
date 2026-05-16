@@ -15,7 +15,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { UserProfile } from "@/contexts/AuthContext";
 import { collection, query, where, QueryConstraint } from "firebase/firestore";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 import { 
   calculateDistance, 
   getUserLocation, 
