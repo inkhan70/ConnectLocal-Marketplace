@@ -61,7 +61,7 @@ export function calculateDistance(
  */
 export async function getBrowserLocation(): Promise<LocationCoordinates | null> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
+    if (typeof window === 'undefined' || !navigator?.geolocation) {
       console.log("[v0] Geolocation API not available");
       resolve(null);
       return;
@@ -200,6 +200,8 @@ export function filterBusinessesByCountry(
  * Cache expires after specified time (default 1 hour)
  */
 export function getCachedLocation(cacheMinutes: number = 60): LocationData | null {
+  if (typeof window === 'undefined') return null;
+  
   try {
     const cached = localStorage.getItem("userLocation");
     if (!cached) return null;
@@ -222,6 +224,8 @@ export function getCachedLocation(cacheMinutes: number = 60): LocationData | nul
  * Save location to localStorage cache
  */
 export function cacheLocation(location: LocationData): void {
+  if (typeof window === 'undefined') return;
+  
   try {
     localStorage.setItem("userLocation", JSON.stringify(location));
   } catch {
