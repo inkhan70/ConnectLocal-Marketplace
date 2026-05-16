@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, Menu, LogOut, Search, Heart } from 'lucide-react';
+import { Globe, Menu, LogOut, Search, Heart, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -51,34 +51,63 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <Globe className="h-5 w-5" />
-                  <span className="sr-only">Select language</span>
+                  <MoreVertical className="h-5 w-5" />
+                  <span className="sr-only">Menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <ScrollArea className="h-auto max-h-80 w-48">
-                  {availableLanguages.map(lang => (
-                    <DropdownMenuItem key={lang.code} onClick={() => setLanguage(lang.code as any)}>
-                      {lang.name}
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/categories">{t('header.categories')}</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/favorites" className="flex items-center gap-2">
+                    <Heart className="h-4 w-4" /> Favorites
+                  </Link>
+                </DropdownMenuItem>
+                {user && user.emailVerified && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard">{t('header.dashboard')}</Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem>
+                  <div className="flex items-center gap-2 cursor-pointer w-full">
+                    <Globe className="h-4 w-4" />
+                    <span>Language</span>
+                  </div>
+                </DropdownMenuItem>
+                <div className="px-2 py-1.5">
+                  <ScrollArea className="h-auto max-h-48">
+                    <div className="flex flex-col space-y-1 pl-6">
+                      {availableLanguages.map(lang => (
+                        <button
+                          key={lang.code}
+                          className={`text-left text-sm px-2 py-1.5 rounded transition-colors hover:bg-muted ${language === lang.code ? 'bg-muted font-semibold' : ''}`}
+                          onClick={() => setLanguage(lang.code as any)}
+                        >
+                          {lang.name}
+                        </button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+                <div className="border-t py-2">
+                  {user ? (
+                    <DropdownMenuItem onClick={handleSignOut} className="text-red-600 cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" /> Sign Out
                     </DropdownMenuItem>
-                  ))}
-                </ScrollArea>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/signin">{t('header.sign_in')}</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/signup">{t('header.sign_up')}</Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
-            {user ? (
-                <Button variant="ghost" onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" /> Sign Out
-                </Button>
-            ) : (
-                <>
-                    <Button variant="ghost" asChild>
-                      <Link href="/signin">{t('header.sign_in')}</Link>
-                    </Button>
-                    <Button asChild>
-                      <Link href="/signup">{t('header.sign_up')}</Link>
-                    </Button>
-                </>
-            )}
           </nav>
         </div>
         
