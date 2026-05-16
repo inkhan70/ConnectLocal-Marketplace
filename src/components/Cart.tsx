@@ -20,12 +20,22 @@ import { Separator } from "./ui/separator";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ItemDelivery } from "./ItemDelivery";
 import type { Address } from "./ItemDelivery";
+import { GuestCheckoutForm } from "./GuestCheckoutForm";
+import type { GuestCheckoutData } from "./GuestCheckoutForm";
 import images from '@/app/lib/placeholder-images.json';
 import { useAuth, UserProfile } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, increment, getDoc, runTransaction } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { v4 as uuidv4 } from 'uuid';
+import Link from "next/link";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface CartItem {
   productId: string;
@@ -51,14 +61,76 @@ export function Cart() {
     state: "",
   });
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showCheckoutOptions, setShowCheckoutOptions] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+
+  const handleGuestCheckout = async (guestData: GuestCheckoutData) => {
+    if (cart.length === 0) {
+      toast({
+        title: "Empty Cart",
+        description: "Your cart is empty.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsPlacingOrder(true);
+    const businessId = cart[0].userId;
+    const guestOrderId = uuidv4();
+
+    try {
+      const ordersCollection = collection(firestore, 'orders');
+      const totalItemsInOrder = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+      const guestOrder = {
+        id: guestOrderId,
+        buyerId: 'guest_' + uuidv4(), // Anonymous guest ID
+        buyerName: guestData.fullName,
+        buyerEmail: guestData.email,
+        buyerPhone: guestData.phone,
+        businessId: businessId,
+        items: cart.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          varietyId: item.varietyId,
+          varietyName: item.varietyName,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+        })),
+        deliveryAddress: `${guestData.address}, ${guestData.city}, ${guestData.state}`,
+        totalCost: subtotal + 5.00,
+        orderDate: serverTimestamp(),
+        status: "Pending",
+        paymentMethod: guestData.paymentMethod,
+        isGuestOrder: true,
+        pickupCode: Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 8).toUpperCase(),
+      };
+
+      await addDoc(ordersCollection, guestOrder);
+
+      toast({
+        title: "Order Placed!",
+        description: `Your guest order has been confirmed. A confirmation email will be sent to ${guestData.email}.`,
+      });
+      
+      clearCart();
+      setShowCheckoutOptions(false);
+    } catch (error: any) {
+      console.error("Error placing guest order: ", error);
+      toast({
+        title: "Error Placing Order",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
 
   const handleConfirmOrder = async () => {
     if (!user || !userProfile) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to place an order.",
-        variant: "destructive"
-      });
+      setShowCheckoutOptions(true);
       return;
     }
     if (!deliveryAddress.address || !deliveryAddress.city || !deliveryAddress.state) {
@@ -267,6 +339,52 @@ export function Cart() {
             <p className="text-muted-foreground">Your cart is empty.</p>
           </div>
         )}
+        
+        {/* Checkout Options Dialog */}
+        <Dialog open={showCheckoutOptions} onOpenChange={setShowCheckoutOptions}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Checkout Options</DialogTitle>
+              <DialogDescription>
+                Choose how you want to proceed with your order
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Register Option */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold">Create Account (Recommended)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Get rewards points and track your orders easily. Plus, earn Ghost Coins with every purchase!
+                </p>
+                <Button asChild className="w-full">
+                  <Link href="/signup">Register Now</Link>
+                </Button>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-background text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              {/* Guest Checkout Option */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-semibold">Continue as Guest</h3>
+                <p className="text-sm text-muted-foreground">
+                  Complete your purchase without creating an account
+                </p>
+                <GuestCheckoutForm 
+                  onSubmit={handleGuestCheckout}
+                  isLoading={isPlacingOrder}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );

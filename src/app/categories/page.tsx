@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { getSubcategoriesForCategory } from '@/lib/subcategories';
 
 const iconMap: { [key: string]: React.ElementType } = {
     UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone
@@ -44,12 +45,6 @@ const defaultCategories: Category[] = [
     { id: 'cat11', name: 'Automotive', icon: 'Car', order: 11 },
     { id: 'cat12', name: 'Services', icon: 'Wrench', order: 12 },
     { id: 'cat13', name: 'Pets', icon: 'Bone', order: 13 },
-];
-
-const healthSubcategories = [
-    { name: 'Medical Store', href: '/businesses?category=health&role=shopkeeper' },
-    { name: 'Doctor', href: '/businesses?category=health&role=services' },
-    { name: 'Pharmaceutical Company', href: '/businesses?category=health&role=company' },
 ];
 
 export default function CategoriesPage() {
@@ -123,11 +118,13 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mt-12">
                 {categories.map((category) => {
                     const IconComponent = iconMap[category.icon] || MoreHorizontal;
+                    const subcategories = getSubcategoriesForCategory(category.name);
+                    const hasSubcategories = subcategories.length > 0;
                     
-                    if (category.name === 'Health') {
+                    if (hasSubcategories) {
                         return (
                             <Accordion key={category.id} type="single" collapsible className="relative group col-span-2 md:col-span-1">
-                                <AccordionItem value="health-category" className="border-none">
+                                <AccordionItem value={`category-${category.id}`} className="border-none">
                                     <Card className="text-center hover:shadow-xl transition-shadow duration-300 ease-in-out h-full">
                                         <AccordionTrigger className="hover:no-underline p-0">
                                             <CardContent className="p-6 flex flex-col items-center justify-center w-full">
@@ -136,10 +133,12 @@ export default function CategoriesPage() {
                                             </CardContent>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-4 px-4">
-                                            <div className="flex flex-col space-y-2">
-                                                {healthSubcategories.map(sub => (
-                                                    <Button key={sub.name} variant="ghost" asChild>
-                                                        <Link href={sub.href}>{sub.name}</Link>
+                                            <div className="flex flex-col space-y-2 max-h-64 overflow-y-auto">
+                                                {subcategories.map(sub => (
+                                                    <Button key={sub.id} variant="ghost" asChild className="justify-start">
+                                                        <Link href={`/signup?category=${category.name}&subcategory=${sub.id}`}>
+                                                            {sub.name}
+                                                        </Link>
                                                     </Button>
                                                 ))}
                                             </div>

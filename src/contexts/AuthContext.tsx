@@ -13,6 +13,9 @@ export interface UserProfile {
     fullName?: string;
     role: string;
     category: string;
+    subcategoryId?: string; // Selected subcategory ID from detailed category list
+    subcategoryName?: string; // Display name of selected subcategory
+    dashboardType?: string; // Type of dashboard layout (services, health, food, etc.)
     address: string;
     city: string;
     state: string;
