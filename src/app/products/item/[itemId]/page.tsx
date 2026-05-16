@@ -70,7 +70,7 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
     if (product && product.varieties.length > 0 && !selectedVariety) {
       setSelectedVariety(product.varieties[0]);
     }
-  }, [product, selectedVariety]);
+  }, [product]);
 
   const averageRating = reviews && reviews.length > 0
     ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length

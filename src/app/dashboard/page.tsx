@@ -24,27 +24,40 @@ export default function DashboardPage() {
     }
 
     // --- Dashboard Routing Logic ---
-    switch (userProfile.role) {
-        case 'buyer':
-            return <BuyerDashboard />;
-        
-        // For all business roles, we now check their category.
-        case 'company':
-        case 'wholesaler':
-        case 'distributor':
-        case 'shopkeeper':
-            switch (userProfile.category) {
-                case 'Health':
-                    return <HealthDashboard />;
-                case 'Automotive':
-                    return <AutomotiveDashboard />;
-                // Default case for all other business categories
-                default:
-                    return <BusinessDashboard />;
-            }
+    // For buyer role, always show buyer dashboard
+    if (userProfile.role === 'buyer') {
+        return <BuyerDashboard />;
+    }
 
+    // For service providers, show services dashboard
+    if (userProfile.role === 'services') {
+        // Services dashboard can be a variant of BusinessDashboard with service-specific features
+        return <BusinessDashboard />;
+    }
+
+    // For all business roles (company, wholesaler, distributor, shopkeeper)
+    // Route based on dashboardType if available, otherwise fall back to category
+    const dashboardType = userProfile.dashboardType || userProfile.category?.toLowerCase();
+
+    switch (dashboardType) {
+        case 'health':
+            return <HealthDashboard />;
+        case 'automotive':
+            return <AutomotiveDashboard />;
+        case 'hospitality':
+        case 'food':
+        case 'services':
+        case 'apparel':
+        case 'jewelry':
+        case 'beauty':
+        case 'electronics':
+        case 'realestate':
+        case 'pets':
+            // All other types use the generic business dashboard
+            // In the future, these can have specialized dashboards
+            return <BusinessDashboard />;
         default:
-            // Fallback for any other roles or if role is not defined
-            return <div>Invalid user role.</div>;
+            // Fallback for any unknown dashboard type
+            return <BusinessDashboard />;
     }
 }
