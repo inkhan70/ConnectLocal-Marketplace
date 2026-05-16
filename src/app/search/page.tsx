@@ -6,13 +6,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, ArrowRight, Loader2, Store, Heart, Package, SearchX } from "lucide-react";
+import { MapPin, ArrowRight, Loader2, Store, Heart, Package, SearchX, Navigation } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
 import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { UserProfile } from '@/contexts/AuthContext';
 import { collection, query, where } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
+import { calculateDistance, getUserLocation, getCachedLocation, cacheLocation, formatDistance } from "@/lib/geolocation";
+import type { LocationData } from "@/lib/geolocation";
 
 // Combine Product and Business into a single result type
 type SearchResult = 
@@ -43,7 +45,11 @@ function SearchResultsContent() {
     const { t } = useLanguage();
     const searchTerm = searchParams.get('q') || '';
     const city = searchParams.get('city') || '';
+    const maxDistanceParam = searchParams.get('maxDistance') || '100';
+    const minPriceParam = searchParams.get('minPrice');
+    const maxPriceParam = searchParams.get('maxPrice');
     const firestore = useFirestore();
+    const [userLocation, setUserLocation] = useState<LocationData | null>(null);
     
     const productsQuery = useMemoFirebase(() => {
         if (!searchTerm) return null;
@@ -74,16 +80,67 @@ function SearchResultsContent() {
     
     const [combinedResults, setCombinedResults] = useState<SearchResult[]>([]);
     
+    // Load user location
+    useEffect(() => {
+        const loadLocation = async () => {
+            const cached = getCachedLocation(30);
+            if (cached) {
+                setUserLocation(cached);
+                return;
+            }
+            const location = await getUserLocation();
+            if (location) {
+                cacheLocation(location);
+                setUserLocation(location);
+            }
+        };
+        loadLocation();
+    }, []);
+    
     useEffect(() => {
         const results: SearchResult[] = [];
+        const maxDistance = parseInt(maxDistanceParam) || 100;
+        const minPrice = minPriceParam ? parseFloat(minPriceParam) : null;
+        const maxPrice = maxPriceParam ? parseFloat(maxPriceParam) : null;
+        
         if (productResults && !city) { 
-            results.push(...productResults.map(p => ({ type: 'product' as const, data: p })));
+            let filtered = productResults;
+            
+            // Filter by price if specified
+            if (minPrice !== null || maxPrice !== null) {
+                filtered = filtered.filter(p => {
+                    const minVarietyPrice = Math.min(...(p.varieties?.map(v => v.price) || [Infinity]));
+                    if (minPrice !== null && minVarietyPrice < minPrice) return false;
+                    if (maxPrice !== null && minVarietyPrice > maxPrice) return false;
+                    return true;
+                });
+            }
+            
+            results.push(...filtered.map(p => ({ type: 'product' as const, data: p })));
         }
+        
         if (businessResults) {
-            results.push(...businessResults.map(b => ({ type: 'business' as const, data: b })));
+            let filtered = businessResults;
+            
+            // Filter by distance if location is available
+            if (userLocation) {
+                const { latitude, longitude } = userLocation.coordinates;
+                filtered = filtered.map(b => ({
+                    ...b,
+                    distance: calculateDistance(
+                        latitude,
+                        longitude,
+                        b.latitude || 0,
+                        b.longitude || 0
+                    )
+                })).filter(b => b.distance <= maxDistance);
+            }
+            
+            results.push(...filtered.map(b => ({ type: 'business' as const, data: b })));
         }
+        
         setCombinedResults(results);
-    }, [productResults, businessResults, city]);
+    }, [productResults, businessResults, city, userLocation, maxDistanceParam, minPriceParam, maxPriceParam]);
     
     const isLoading = productsLoading || businessesLoading;
 
@@ -145,7 +202,7 @@ function SearchResultsContent() {
                            );
                        }
                        if (result.type === 'business') {
-                           const business = result.data;
+                           const business = result.data as UserProfile & { distance?: number };
                            return (
                              <Card key={`biz-${business.uid}`} className="flex flex-col">
                                 <CardHeader className="p-0">
@@ -159,9 +216,23 @@ function SearchResultsContent() {
                                     />
                                 </CardHeader>
                                <CardContent className="p-4 flex-grow">
-                                   <Badge variant="outline" className="mb-2"><Store className="mr-1 h-3 w-3"/>Business</Badge>
+                                   <div className="flex items-center justify-between mb-2">
+                                       <Badge variant="outline"><Store className="mr-1 h-3 w-3"/>Business</Badge>
+                                       {business.distance !== undefined && (
+                                           <Badge variant="secondary" className="text-xs">
+                                               <Navigation className="mr-1 h-3 w-3" />
+                                               {formatDistance(business.distance)}
+                                           </Badge>
+                                       )}
+                                   </div>
                                    <CardTitle className="font-headline text-xl">{business.businessName}</CardTitle>
-                                   <CardDescription>{business.address}</CardDescription>
+                                   <CardDescription className="flex items-start gap-1">
+                                       <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                       <span>{business.address}</span>
+                                   </CardDescription>
+                                   {business.subcategoryName && (
+                                       <p className="text-sm text-primary mt-2 font-medium">{business.subcategoryName}</p>
+                                   )}
                                </CardContent>
                                <CardFooter className="p-4 pt-0">
                                    <Button asChild className="w-full">

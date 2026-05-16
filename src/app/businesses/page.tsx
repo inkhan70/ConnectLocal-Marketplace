@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { MapPin, ArrowRight, Loader2, Store, Heart } from "lucide-react";
+import { MapPin, ArrowRight, Loader2, Store, Heart, Navigation } from "lucide-react";
 import Image from "next/image";
 import { Suspense, useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,22 +16,16 @@ import { UserProfile } from "@/contexts/AuthContext";
 import { collection, query, where, QueryConstraint } from "firebase/firestore";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
 import { cn } from "@/lib/utils"
-
-// --- Helper Functions ---
-// Haversine formula to calculate distance between two lat/lon points
-const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
-  const R = 6371; // Radius of the Earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c;
-  return d; // Distance in km
-};
+import { 
+  calculateDistance, 
+  getUserLocation, 
+  getCachedLocation, 
+  cacheLocation,
+  formatDistance,
+  filterBusinessesByDistance,
+  filterBusinessesByCountry 
+} from "@/lib/geolocation";
+import type { LocationData } from "@/lib/geolocation";
 
 const PROXIMITY_RADIUS_KM = 100;
 
@@ -68,7 +62,8 @@ function BusinessesContent() {
   const category = categoryParam === 'all' ? 'all' : capitalize(categoryParam);
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
-  const [userCoords, setUserCoords] = useState<{lat: number, lon: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<LocationData | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
 
   const businessesQuery = useMemoFirebase(() => {
     const usersCollection = collection(firestore, 'users');
@@ -89,54 +84,83 @@ function BusinessesContent() {
 
   const { data: fetchedBusinesses, isLoading: loading, error } = useCollection<UserProfile>(businessesQuery);
 
+  // Get user location on mount
   useEffect(() => {
-    // Get user's location once
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserCoords({ lat: position.coords.latitude, lon: position.coords.longitude });
-        },
-        (error) => {
-          console.warn("Geolocation denied or unavailable.", error);
+    const loadUserLocation = async () => {
+      setIsLoadingLocation(true);
+      try {
+        // Check for cached location first
+        const cached = getCachedLocation(30); // 30 minute cache
+        if (cached) {
+          setUserLocation(cached);
+          setIsLoadingLocation(false);
+          return;
         }
-      );
-    }
+
+        // Get fresh location
+        const location = await getUserLocation();
+        if (location) {
+          cacheLocation(location);
+          setUserLocation(location);
+        }
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    loadUserLocation();
   }, []);
 
   useEffect(() => {
-    if (fetchedBusinesses) {
-      let allBusinessesWithData: Business[] = fetchedBusinesses.map((biz) => ({
+    if (!fetchedBusinesses) return;
+
+    let processedBusinesses: Business[] = fetchedBusinesses.map((biz) => ({
+      ...biz,
+      id: biz.uid,
+      lat: biz.latitude || 34.0522,
+      lon: biz.longitude || -118.2437,
+      image: images.businesses.corner_store,
+      dataAiHint: 'business'
+    }));
+
+    if (userLocation) {
+      const { latitude, longitude } = userLocation.coordinates;
+      const { countryCode } = userLocation;
+      
+      // Calculate distance for all businesses
+      const businessesWithDistance = processedBusinesses.map(biz => ({
         ...biz,
-        id: biz.uid,
-        lat: 34.0522 + (Math.random() - 0.5) * 2, // Fake lat around LA
-        lon: -118.2437 + (Math.random() - 0.5) * 2, // Fake lon around LA
-        image: images.businesses.corner_store, // Placeholder image
-        dataAiHint: 'corner store'
+        distance: calculateDistance(latitude, longitude, biz.lat || 0, biz.lon || 0),
       }));
 
-      if (userCoords) {
-        // Calculate distance for all businesses
-        const businessesWithDistance = allBusinessesWithData.map(biz => ({
-          ...biz,
-          distance: getDistance(userCoords.lat, userCoords.lon, biz.lat!, biz.lon!),
-        }));
-
-        // Filter for businesses within the radius
-        const nearbyBusinesses = businessesWithDistance.filter(biz => biz.distance! <= PROXIMITY_RADIUS_KM);
+      // Filter for businesses within the radius
+      const nearbyBusinesses = businessesWithDistance.filter(biz => biz.distance <= PROXIMITY_RADIUS_KM);
+      
+      if (nearbyBusinesses.length >= 5) {
+        // If there are enough nearby businesses, show them sorted by distance (top 20)
+        setDisplayedBusinesses(nearbyBusinesses.sort((a, b) => a.distance - b.distance).slice(0, 20));
+      } else if (nearbyBusinesses.length > 0) {
+        // If some nearby businesses found, show them plus others from same country
+        const otherBusinesses = businessesWithDistance
+          .filter(biz => biz.distance > PROXIMITY_RADIUS_KM && biz.countryCode === countryCode)
+          .sort((a, b) => a.distance - b.distance);
         
-        if (nearbyBusinesses.length > 0) {
-          // If there are nearby businesses, show them sorted by distance
-          setDisplayedBusinesses(nearbyBusinesses.sort((a, b) => a.distance! - b.distance!));
-        } else {
-          // If no businesses are nearby, show all businesses, still sorted by distance
-          setDisplayedBusinesses(businessesWithDistance.sort((a, b) => a.distance! - b.distance!));
-        }
+        const combined = [...nearbyBusinesses, ...otherBusinesses].slice(0, 20);
+        setDisplayedBusinesses(combined.sort((a, b) => a.distance - b.distance));
       } else {
-        // If no user location, just show all fetched businesses
-        setDisplayedBusinesses(allBusinessesWithData);
+        // No nearby businesses, show all from same country sorted by distance
+        const sameCountry = businessesWithDistance
+          .filter(biz => biz.countryCode === countryCode)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 20);
+        
+        setDisplayedBusinesses(sameCountry.length > 0 ? sameCountry : businessesWithDistance.slice(0, 20));
       }
+    } else {
+      // No user location, just show fetched businesses
+      setDisplayedBusinesses(processedBusinesses.slice(0, 20));
     }
-  }, [fetchedBusinesses, userCoords]);
+  }, [fetchedBusinesses, userLocation]);
 
 
   const roleTitle = t(`roles.${roleParam}`); // Use original plural param for display
@@ -187,9 +211,10 @@ function BusinessesContent() {
                         {biz.address}
                     </CardDescription>
                     {biz.distance !== undefined && (
-                        <p className="text-sm font-semibold text-primary mt-2">
-                            {biz.distance.toFixed(1)} km {t('businesses.distance_away')}
-                        </p>
+                        <div className="flex items-center gap-1 text-sm font-semibold text-primary mt-2">
+                            <Navigation className="h-4 w-4" />
+                            {formatDistance(biz.distance)}
+                        </div>
                     )}
                 </CardContent>
                 <CardFooter className="p-4 pt-0">

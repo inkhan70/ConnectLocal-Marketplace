@@ -23,7 +23,16 @@ export function ProductSearch({ placeholder }: ProductSearchProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [city, setCity] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [maxDistance, setMaxDistance] = useState('100');
   const [date, setDate] = useState<Date>();
+
+  const businessTypes = [
+    'doctor', 'medical-store', 'restaurant', 'cafe', 'car-dealership', 
+    'hotel', 'shopkeeper', 'wholesaler', 'distributor', 'manufacturer'
+  ];
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,6 +42,18 @@ export function ProductSearch({ placeholder }: ProductSearchProps) {
     }
     if (city.trim()) {
       params.set('city', city.trim());
+    }
+    if (businessType.trim()) {
+      params.set('businessType', businessType.trim());
+    }
+    if (minPrice.trim()) {
+      params.set('minPrice', minPrice.trim());
+    }
+    if (maxPrice.trim()) {
+      params.set('maxPrice', maxPrice.trim());
+    }
+    if (maxDistance.trim()) {
+      params.set('maxDistance', maxDistance.trim());
     }
 
     if (params.toString()) {
@@ -79,14 +100,58 @@ export function ProductSearch({ placeholder }: ProductSearchProps) {
                 />
               </div>
 
+              {/* Business Type */}
+              <div className="space-y-2">
+                <Label htmlFor="businessType">Business Type</Label>
+                <select 
+                    id="businessType"
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                    <option value="">All Types</option>
+                    {businessTypes.map(type => (
+                        <option key={type} value={type}>
+                            {type.replace('-', ' ').charAt(0).toUpperCase() + type.slice(1)}
+                        </option>
+                    ))}
+                </select>
+              </div>
+
               {/* Price Range */}
               <div className="space-y-2">
                 <Label htmlFor="min-price">{t('product_search.price_range')}</Label>
                 <div className="flex items-center gap-2">
-                  <Input id="min-price" type="number" placeholder={t('product_search.min')} />
+                  <Input 
+                      id="min-price" 
+                      type="number" 
+                      placeholder={t('product_search.min')}
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                  />
                   <span>-</span>
-                  <Input id="max-price" type="number" placeholder={t('product_search.max')} />
+                  <Input 
+                      id="max-price" 
+                      type="number" 
+                      placeholder={t('product_search.max')}
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                  />
                 </div>
+              </div>
+
+              {/* Distance Radius */}
+              <div className="space-y-2">
+                <Label htmlFor="distance">Radius (km)</Label>
+                <Input 
+                    id="distance"
+                    type="number"
+                    placeholder="100"
+                    value={maxDistance}
+                    onChange={(e) => setMaxDistance(e.target.value)}
+                    min="1"
+                    max="500"
+                />
               </div>
               
               {/* Weight */}

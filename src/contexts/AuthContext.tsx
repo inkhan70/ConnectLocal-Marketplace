@@ -19,6 +19,9 @@ export interface UserProfile {
     address: string;
     city: string;
     state: string;
+    countryCode?: string; // ISO country code for location filtering
+    latitude?: number; // Business location latitude for proximity search
+    longitude?: number; // Business location longitude for proximity search
     createdAt: string; // Keep as string to match what's in Firestore
     isAdmin?: boolean;
     purchaseHistory?: string[];

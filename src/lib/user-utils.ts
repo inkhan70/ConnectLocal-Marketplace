@@ -12,6 +12,9 @@ type SignUpData = {
     address: string;
     city: string;
     state: string;
+    countryCode?: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 /**
@@ -44,6 +47,9 @@ export function createDefaultUserProfile(
         address: data.address || '',
         city: data.city || '',
         state: data.state || '',
+        countryCode: data.countryCode || '',
+        latitude: data.latitude,
+        longitude: data.longitude,
         createdAt: new Date().toISOString(),
         isAdmin: isAdmin,
         purchaseHistory: [],
