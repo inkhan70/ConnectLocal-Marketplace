@@ -9,8 +9,8 @@ export interface SubcategoryOption {
 }
 
 export const subcategoriesMap: Record<string, SubcategoryOption[]> = {
-  // Health & Medical
-  health: [
+  // Medical & Healthcare
+  medical: [
     {
       id: 'health_doctor',
       name: 'Doctor / Medical Professional',
@@ -24,10 +24,28 @@ export const subcategoriesMap: Record<string, SubcategoryOption[]> = {
       dashboardType: 'health',
     },
     {
+      id: 'health_hospital',
+      name: 'Hospital',
+      role: 'company',
+      dashboardType: 'health',
+    },
+    {
       id: 'health_pharmacy',
       name: 'Medical Store / Pharmacy',
       role: 'shopkeeper',
       dashboardType: 'health',
+    },
+    {
+      id: 'health_dental',
+      name: 'Dental Clinic',
+      role: 'company',
+      dashboardType: 'health',
+    },
+    {
+      id: 'health_therapy',
+      name: 'Physical Therapy / Rehabilitation',
+      role: 'services',
+      dashboardType: 'services',
     },
     {
       id: 'health_pharmaceutical',
@@ -39,6 +57,12 @@ export const subcategoriesMap: Record<string, SubcategoryOption[]> = {
       id: 'health_distributor',
       name: 'Medical Distributor',
       role: 'distributor',
+      dashboardType: 'health',
+    },
+    {
+      id: 'health_lab',
+      name: 'Diagnostic Lab',
+      role: 'company',
       dashboardType: 'health',
     },
   ],
