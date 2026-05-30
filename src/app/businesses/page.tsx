@@ -250,7 +250,7 @@ function BusinessesContent() {
         </div>
 
       <div className="text-left mb-8">
-        <p className="text-lg text-muted-foreground">{t('businesses.showing_role_for')} {roleTitle} for</p>
+        <p className="text-lg text-muted-foreground">{t('businesses.showing_role_for')} {roleTitle}</p>
         <h1 className="text-4xl md:text-5xl font-extrabold font-headline leading-tight tracking-tighter">
           {categoryTitle}
         </h1>
