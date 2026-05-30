@@ -49,14 +49,14 @@ const formSchema = z.object({
   city: z.string().min(2, { message: "City is required." }),
   state: z.string().min(2, { message: "State is required." }),
 }).superRefine((data, ctx) => {
-    if (data.role !== 'buyer' && (!data.businessName || data.businessName.length < 2)) {
+    if (data.role !== 'buyer' && data.role !== 'services' && (!data.businessName || data.businessName.length < 2)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Business name is required and must be at least 2 characters.",
             path: ["businessName"],
         });
     }
-    if (data.role !== 'buyer' && !data.category) {
+    if (data.role !== 'buyer' && (!data.category || data.category.length === 0)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Business category is required.",
@@ -68,6 +68,13 @@ const formSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: "Full name is required and must be at least 2 characters.",
             path: ["fullName"],
+        });
+    }
+    if (data.role === 'services' && (!data.businessName || data.businessName.length < 2)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Service provider name is required and must be at least 2 characters.",
+            path: ["businessName"],
         });
     }
 });
@@ -246,6 +253,7 @@ export function SignupForm() {
                               <SelectItem value="wholesaler">{t('signup.role_wholesaler')}</SelectItem>
                               <SelectItem value="distributor">{t('signup.role_distributor')}</SelectItem>
                               <SelectItem value="shopkeeper">{t('signup.role_shopkeeper')}</SelectItem>
+                              <SelectItem value="services">Service Provider</SelectItem>
                           </SelectContent>
                       </Select>
                       <FormMessage />
@@ -313,9 +321,9 @@ export function SignupForm() {
                     name="businessName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('signup.business_name')}</FormLabel>
+                        <FormLabel>{selectedRole === 'services' ? 'Service Provider Name' : t('signup.business_name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder={t('signup.business_name_placeholder')} {...field} />
+                          <Input placeholder={selectedRole === 'services' ? 'e.g., John Medical Clinic' : t('signup.business_name_placeholder')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

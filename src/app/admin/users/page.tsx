@@ -168,6 +168,7 @@ export default function AdminUsersPage() {
                                             <SelectItem value="wholesaler">Wholesaler</SelectItem>
                                             <SelectItem value="distributor">Distributor</SelectItem>
                                             <SelectItem value="shopkeeper">Shopkeeper</SelectItem>
+                                            <SelectItem value="services">Service Provider</SelectItem>
                                             <SelectItem value="admin">Admin</SelectItem>
                                         </SelectContent>
                                     </Select>
