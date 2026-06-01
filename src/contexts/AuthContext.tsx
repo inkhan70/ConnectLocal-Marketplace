@@ -32,6 +32,10 @@ export interface UserProfile {
     totalItemsPurchased?: number;
     membershipTier?: 'community' | 'pro';
     businessDescription?: string;
+    subscriptionPlanId?: string; // Reference to subscription plan
+    subscriptionStartDate?: string; // ISO date string
+    subscriptionEndDate?: string; // ISO date string
+    subscriptionStatus?: 'active' | 'inactive' | 'expired'; // Subscription status
 }
 
 interface AuthContextType {

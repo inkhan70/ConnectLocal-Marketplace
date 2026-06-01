@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Settings, Users, Store, LogOut, Languages, Loader2, Megaphone, Library } from "lucide-react";
+import { LayoutDashboard, Settings, Users, Store, LogOut, Languages, Loader2, Megaphone, Library, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useEffect } from "react";
@@ -22,6 +22,11 @@ const sidebarNavItems = [
         title: "Users",
         href: "/admin/users",
         icon: Users,
+    },
+    {
+        title: "Subscriptions",
+        href: "/admin/subscriptions",
+        icon: CreditCard,
     },
     {
         title: "Categories",
