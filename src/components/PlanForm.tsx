@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { setDoc, doc, serverTimestamp, Firestore } from "firebase/firestore";
+import { setDoc, doc, serverTimestamp, Firestore, collection } from "firebase/firestore";
 
 interface SubscriptionPlan {
   id?: string;
@@ -326,6 +326,3 @@ export default function PlanForm({
     </Card>
   );
 }
-
-// Helper import needed
-import { collection } from "firebase/firestore";
