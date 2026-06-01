@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { collection, query } from "firebase/firestore";
 
 interface SubscriptionPlan {
-  id: string;
+  id?: string;
   name: string;
   description: string;
   price: number;
@@ -24,16 +24,19 @@ interface SubscriptionPlan {
   storageLimit: number;
   listings: number;
   priority: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-interface UserSubscription {
-  uid: string;
+interface UserDoc {
+  uid?: string;
+  email?: string;
+  businessName?: string;
   subscriptionPlanId?: string;
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
   subscriptionStatus?: 'active' | 'inactive' | 'expired';
+  [key: string]: any;
 }
 
 export default function SubscriptionsDashboard() {
@@ -50,7 +53,7 @@ export default function SubscriptionsDashboard() {
   const { data: plans, isLoading: plansLoading, error: plansError } = useCollection<SubscriptionPlan>(plansQuery);
 
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
-  const { data: users, isLoading: usersLoading, error: usersError } = useCollection<UserSubscription>(usersQuery);
+  const { data: users, isLoading: usersLoading, error: usersError } = useCollection<UserDoc>(usersQuery);
 
   useEffect(() => {
     if (plansError) {
@@ -76,12 +79,12 @@ export default function SubscriptionsDashboard() {
 
   useEffect(() => {
     if (plans && users) {
-      const activeCount = users.filter((u: UserSubscription) => u.subscriptionStatus === 'active').length;
-      const inactiveCount = users.filter((u: UserSubscription) => u.subscriptionStatus === 'inactive').length;
-      const expiredCount = users.filter((u: UserSubscription) => u.subscriptionStatus === 'expired').length;
+      const activeCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'active').length;
+      const inactiveCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'inactive').length;
+      const expiredCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'expired').length;
 
       setStats({
-        totalPlans: plans.length,
+        totalPlans: plans?.length || 0,
         activeSubscriptions: activeCount,
         inactiveSubscriptions: inactiveCount,
         expiredSubscriptions: expiredCount,

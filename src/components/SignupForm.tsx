@@ -246,6 +246,7 @@ export function SignupForm() {
                               <SelectItem value="wholesaler">{t('signup.role_wholesaler')}</SelectItem>
                               <SelectItem value="distributor">{t('signup.role_distributor')}</SelectItem>
                               <SelectItem value="shopkeeper">{t('signup.role_shopkeeper')}</SelectItem>
+                              <SelectItem value="services">Services</SelectItem>
                           </SelectContent>
                       </Select>
                       <FormMessage />
