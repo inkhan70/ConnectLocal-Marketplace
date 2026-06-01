@@ -10,7 +10,7 @@ import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 
 interface SubscriptionPlan {
-  id: string;
+  id?: string;
   name: string;
   description: string;
   price: number;
@@ -35,7 +35,8 @@ export default function PlanDetailPage() {
     [firestore, planId, isNewPlan]
   );
 
-  const { data: plan, isLoading } = useDoc<SubscriptionPlan>(planDocRef);
+  const { data: planData, isLoading } = useDoc<SubscriptionPlan>(planDocRef);
+  const plan = planData || undefined;
 
   const handleSuccess = (savedPlanId: string) => {
     router.push("/admin/subscriptions/plans");

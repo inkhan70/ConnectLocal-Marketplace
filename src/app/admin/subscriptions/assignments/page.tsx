@@ -61,7 +61,7 @@ export default function AssignmentsPage() {
   const { data: plans, isLoading: plansLoading, error: plansError } = useCollection<SubscriptionPlan>(plansQuery);
 
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
-  const { data: users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useCollection<User>(usersQuery);
+  const { data: users, isLoading: usersLoading, error: usersError } = useCollection<User>(usersQuery);
 
   useEffect(() => {
     if (plansError) {
@@ -128,7 +128,7 @@ export default function AssignmentsPage() {
   };
 
   const handleSuccess = () => {
-    refetchUsers?.();
+    handleCloseDialog();
   };
 
   return (
@@ -180,7 +180,9 @@ export default function AssignmentsPage() {
                     <TableCell>{getPlanName(user.subscriptionPlanId)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(user.subscriptionStatus)}>
-                        {user.subscriptionStatus?.charAt(0).toUpperCase() + user.subscriptionStatus?.slice(1) || "Inactive"}
+                        {user.subscriptionStatus 
+                          ? user.subscriptionStatus.charAt(0).toUpperCase() + user.subscriptionStatus.slice(1)
+                          : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell>
