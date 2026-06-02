@@ -78,17 +78,22 @@ export default function SubscriptionsDashboard() {
   }, [usersError, toast]);
 
   useEffect(() => {
-    if (plans && users) {
-      const activeCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'active').length;
-      const inactiveCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'inactive').length;
-      const expiredCount = users.filter((u: UserDoc) => u.subscriptionStatus === 'expired').length;
+    try {
+      const plansCount = Array.isArray(plans) ? plans.length : 0;
+      const usersArray = Array.isArray(users) ? users : [];
+      
+      const activeCount = usersArray.filter((u: UserDoc) => u?.subscriptionStatus === 'active').length;
+      const inactiveCount = usersArray.filter((u: UserDoc) => u?.subscriptionStatus === 'inactive').length;
+      const expiredCount = usersArray.filter((u: UserDoc) => u?.subscriptionStatus === 'expired').length;
 
       setStats({
-        totalPlans: plans?.length || 0,
+        totalPlans: plansCount,
         activeSubscriptions: activeCount,
         inactiveSubscriptions: inactiveCount,
         expiredSubscriptions: expiredCount,
       });
+    } catch (error) {
+      console.error("[v0] Error calculating stats:", error);
     }
   }, [plans, users]);
 
@@ -177,19 +182,24 @@ export default function SubscriptionsDashboard() {
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : plans && plans.length > 0 ? (
+            ) : Array.isArray(plans) && plans.length > 0 ? (
               <div className="space-y-2">
-                {plans.map((plan) => (
-                  <div key={plan.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{plan.name}</p>
-                      <p className="text-sm text-muted-foreground">${plan.price}/month</p>
+                {plans.map((plan) => {
+                  const planId = plan?.id || '';
+                  return (
+                    <div key={planId} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                      <div>
+                        <p className="font-medium">{plan?.name || 'Unnamed Plan'}</p>
+                        <p className="text-sm text-muted-foreground">${plan?.price || 0}/month</p>
+                      </div>
+                      {planId && (
+                        <Link href={`/admin/subscriptions/${planId}`}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                      )}
                     </div>
-                    <Link href={`/admin/subscriptions/${plan.id}`}>
-                      <Button variant="outline" size="sm">Edit</Button>
-                    </Link>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
