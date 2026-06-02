@@ -126,10 +126,24 @@ export default function PlansManagementPage() {
               ) : plans && plans.length > 0 ? (
                 plans.map((plan) => (
                   <TableRow key={plan.id}>
-                    <TableCell className="font-medium">{plan.name}</TableCell>
-                    <TableCell>${plan.price.toFixed(2)}/month</TableCell>
-                    <TableCell>{plan.storageLimit} GB</TableCell>
-                    <TableCell>{plan.listings} listings</TableCell>
+                    <TableCell className="font-medium">
+                      <div>
+                        <p className="font-semibold">{plan.name}</p>
+                        <p className="text-xs text-muted-foreground">{plan.description}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold">${plan.price.toFixed(2)}</div>
+                      <p className="text-xs text-muted-foreground">per month</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{plan.storageLimit} GB</div>
+                      <p className="text-xs text-muted-foreground">file storage</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{plan.listings}</div>
+                      <p className="text-xs text-muted-foreground">product listings</p>
+                    </TableCell>
                     <TableCell className="max-w-xs">
                       <div className="flex flex-wrap gap-1">
                         {plan.features.slice(0, 2).map((feature, idx) => (

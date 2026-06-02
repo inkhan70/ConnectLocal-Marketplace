@@ -238,10 +238,13 @@ export default function PlanForm({
                   onChange={handleInputChange}
                   className="mt-1"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total file storage size allowed for users on this plan
+                </p>
               </div>
 
               <div>
-                <Label htmlFor="listings">Max Listings *</Label>
+                <Label htmlFor="listings">Max Product Listings *</Label>
                 <Input
                   id="listings"
                   name="listings"
@@ -252,6 +255,9 @@ export default function PlanForm({
                   onChange={handleInputChange}
                   className="mt-1"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Maximum number of products users can list
+                </p>
               </div>
             </div>
           </div>
