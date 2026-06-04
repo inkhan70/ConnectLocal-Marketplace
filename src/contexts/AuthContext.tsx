@@ -36,6 +36,10 @@ export interface UserProfile {
     subscriptionStartDate?: string; // ISO date string
     subscriptionEndDate?: string; // ISO date string
     subscriptionStatus?: 'active' | 'inactive' | 'expired'; // Subscription status
+    storageLimitBytes?: number; // Total storage limit in bytes from subscription plan
+    usedStorageBytes?: number; // Currently used storage in bytes
+    maxListings?: number; // Maximum product listings from subscription plan
+    currentListings?: number; // Current number of product listings
 }
 
 interface AuthContextType {

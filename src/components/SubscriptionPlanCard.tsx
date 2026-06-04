@@ -58,15 +58,21 @@ export default function SubscriptionPlanCard({
         )}
 
         {/* Limits */}
-        <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
-          <h4 className="font-semibold text-sm">Limits & Features</h4>
-          <div className="space-y-1 text-sm">
-            <p>
-              <strong>Storage:</strong> {plan.storageLimit} GB
-            </p>
-            <p>
-              <strong>Max Listings:</strong> {plan.listings}
-            </p>
+        <div className="bg-secondary/50 p-4 rounded-lg space-y-3">
+          <h4 className="font-semibold text-sm">Storage & Limits</h4>
+          <div className="space-y-2 text-sm">
+            <div>
+              <div className="flex justify-between mb-1">
+                <strong>Storage:</strong>
+                <span>{plan.storageLimit} GB</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {plan.storageLimit * 1024} MB available
+              </div>
+            </div>
+            <div>
+              <strong>Max Listings:</strong> {plan.listings} products
+            </div>
           </div>
         </div>
 
