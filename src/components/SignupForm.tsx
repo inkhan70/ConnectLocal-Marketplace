@@ -156,18 +156,38 @@ export function SignupForm() {
     }, [selectedCategory]);
 
     async function handleGoogleSignUp() {
+        const valid = await form.trigger(["role", "businessName", "category", "fullName", "address", "city", "state"]);
+        if (!valid) {
+            toast({
+                title: "Complete your profile first",
+                description: "Choose your trade type and complete the required profile details before continuing with Google.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setIsLoading(true);
         try {
             const provider = new (firebaseAuth as any).GoogleAuthProvider();
             const result = await (firebaseAuth as any).signInWithPopup(auth, provider);
             const user = result.user;
+            const values = form.getValues();
             const userRef = doc(firestore, "users", user.uid);
             const existing = await getDoc(userRef);
-            if (!existing.exists()) {
-                await setDoc(userRef, createDefaultUserProfile(user.uid, user.email || "", { role: "buyer", fullName: user.displayName || "Google user" }));
+            let userProfile;
+
+            if (existing.exists()) {
+                userProfile = existing.data();
+            } else {
+                userProfile = createDefaultUserProfile(user.uid, user.email || values.email, {
+                    ...values,
+                    fullName: values.fullName || user.displayName || "Google user",
+                });
+                await setDoc(userRef, userProfile);
             }
-            toast({ title: "Google account connected", description: "Complete your business profile from dashboard settings." });
-            router.push("/dashboard");
+
+            toast({ title: "Google account connected", description: "Your trade profile is ready." });
+            router.push(userProfile.isAdmin ? "/admin" : "/dashboard");
         } catch (error: any) {
             toast({ title: "Google sign-up failed", description: error.code === "auth/popup-closed-by-user" ? "The sign-in window was closed." : "Please try again.", variant: "destructive" });
         } finally {
