@@ -1,7 +1,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getAnalytics } from "firebase/analytics";
@@ -16,7 +16,7 @@ if (!getApps().length) {
     firebaseApp = getApp();
 }
 
-const auth = getAuth(firebaseApp);
+const auth = (firebaseAuth as any).getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const storage = getStorage(firebaseApp);
 

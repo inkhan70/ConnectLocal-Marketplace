@@ -5,14 +5,7 @@ import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { 
-    setPersistence, 
-    browserLocalPersistence, 
-    browserSessionPersistence,
-    signInWithEmailAndPassword,
-    sendEmailVerification,
-    User
-} from "firebase/auth";
+import * as firebaseAuth from "firebase/auth";
 import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -35,6 +28,13 @@ import { useState } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { UserProfile } from "@/contexts/AuthContext";
 import { createDefaultUserProfile } from "@/lib/user-utils";
+
+type User = {
+  emailVerified: boolean;
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+};
 
 const formSchema = z.object({
   email: z.string().email({
@@ -65,7 +65,7 @@ export default function SignInPage() {
     const handleResendVerification = async (user: User) => {
         if (!user) return;
         try {
-            await sendEmailVerification(user);
+            await (firebaseAuth as any).sendEmailVerification(user);
             toast({ title: t('toast.verification_sent_title'), description: t('toast.verification_sent_desc') });
         } catch (error) {
             console.error("Error resending verification email:", error);
@@ -76,10 +76,10 @@ export default function SignInPage() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
-            const persistence = values.rememberMe ? browserLocalPersistence : browserSessionPersistence;
-            await setPersistence(auth, persistence);
+            const persistence = values.rememberMe ? (firebaseAuth as any).browserLocalPersistence : (firebaseAuth as any).browserSessionPersistence;
+            await (firebaseAuth as any).setPersistence(auth, persistence);
             
-            const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+            const userCredential = await (firebaseAuth as any).signInWithEmailAndPassword(auth, values.email, values.password);
             const user = userCredential.user;
 
             if (!user.emailVerified) {

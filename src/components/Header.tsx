@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import { signOut } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { Cart } from './Cart';
 
 export function Header() {
@@ -24,7 +24,7 @@ export function Header() {
   const router = useRouter();
   
   const handleSignOut = async () => {
-      await signOut(firebaseAuth);
+      await (firebaseAuth as any).signOut(firebaseAuth);
       router.push('/');
   };
 

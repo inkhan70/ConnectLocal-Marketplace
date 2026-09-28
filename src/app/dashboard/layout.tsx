@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useEffect } from "react";
-import { signOut } from "firebase/auth";
 
 const businessSidebarNavItems = [
     {
@@ -85,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     
     const handleSignOut = async () => {
         if (!firebaseAuth) return;
-        await signOut(firebaseAuth);
+        await firebaseAuth.signOut();
         router.push('/');
     };
 

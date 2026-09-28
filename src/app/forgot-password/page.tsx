@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useAuth } from "@/firebase";
-import { sendPasswordResetEmail } from "firebase/auth";
+import * as firebaseAuth from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
-            await sendPasswordResetEmail(auth, values.email);
+            await (firebaseAuth as any).sendPasswordResetEmail(auth, values.email);
             toast({
                 title: t('toast.reset_link_sent'),
                 description: t('toast.reset_link_sent_desc'),

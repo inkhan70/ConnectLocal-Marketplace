@@ -9,7 +9,7 @@ import { LayoutDashboard, Settings, Users, Store, LogOut, Languages, Loader2, Me
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useEffect } from "react";
-import { signOut } from "firebase/auth";
+import * as firebaseAuth from "firebase/auth";
 
 
 const sidebarNavItems = [
@@ -67,7 +67,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     
     const handleSignOut = async () => {
         if (!firebaseAuth) return;
-        await signOut(firebaseAuth);
+        await (firebaseAuth as any).signOut(firebaseAuth);
         router.push('/');
     };
 

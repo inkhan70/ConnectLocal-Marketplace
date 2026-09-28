@@ -4,7 +4,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase';
-import { applyActionCode, checkActionCode } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -32,10 +32,10 @@ function VerifyEmailContent() {
     const handleVerifyEmail = async () => {
       try {
         // First, check if the code is valid.
-        await checkActionCode(auth, actionCode);
+        await (firebaseAuth as any).checkActionCode(auth, actionCode);
         
         // If valid, apply the code to verify the email.
-        await applyActionCode(auth, actionCode);
+        await (firebaseAuth as any).applyActionCode(auth, actionCode);
         
         setStatus('success');
         setMessage('Your email has been successfully verified! You can now sign in.');
