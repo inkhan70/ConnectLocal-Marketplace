@@ -6,6 +6,7 @@ import { BuyerDashboard } from './buyer-dashboard';
 import { BusinessDashboard } from './business-dashboard';
 import { HealthDashboard } from './health-dashboard';
 import { AutomotiveDashboard } from './automotive-dashboard';
+import { RoleDashboard } from './role-dashboard';
 
 export default function DashboardPage() {
     const { userProfile, loading } = useAuth();
@@ -30,9 +31,8 @@ export default function DashboardPage() {
     }
 
     // For service providers, show services dashboard
-    if (userProfile.role === 'services') {
-        // Services dashboard can be a variant of BusinessDashboard with service-specific features
-        return <BusinessDashboard />;
+    if (userProfile.role === 'services' || userProfile.role === 'shopkeeper') {
+        return <RoleDashboard />;
     }
 
     // For all business roles (company, wholesaler, distributor, shopkeeper)
