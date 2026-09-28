@@ -2,7 +2,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from 'firebase/auth';
 import { doc } from "firebase/firestore";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 
@@ -43,7 +42,12 @@ export interface UserProfile {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: {
+    uid: string;
+    email: string | null;
+    emailVerified: boolean;
+    displayName: string | null;
+  } | null;
   userProfile: UserProfile | null;
   loading: boolean;
 }

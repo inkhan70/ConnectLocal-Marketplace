@@ -10,7 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Location } from "@/components/Location";
 import { useState, useEffect } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -158,7 +158,7 @@ export function SignupForm() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            const userCredential = await (firebaseAuth as any).createUserWithEmailAndPassword(auth, values.email, values.password);
             const user = userCredential.user;
 
             const configRef = doc(firestore, "config", "user_count");
@@ -195,7 +195,7 @@ export function SignupForm() {
                 throw transactionError;
             }
             
-            await sendEmailVerification(user);
+            await (firebaseAuth as any).sendEmailVerification(user);
 
             toast({
               title: t('toast.signup_success'),

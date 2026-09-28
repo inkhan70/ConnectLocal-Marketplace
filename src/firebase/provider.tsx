@@ -4,7 +4,10 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
+
+type Auth = any;
+type User = any;
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import { auth as authInstance, firestore as firestoreInstance, firebaseApp as firebaseAppInstance } from '@/firebase';
 
@@ -46,10 +49,10 @@ export const useUser = (): UserHookResult => {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
+    const unsubscribe = (firebaseAuth as any).onAuthStateChanged(
       authInstance,
-      (user) => setUserState({ user, isUserLoading: false, userError: null }),
-      (error) => setUserState({ user: null, isUserLoading: false, userError: error })
+      (user: User | null) => setUserState({ user, isUserLoading: false, userError: null }),
+      (error: Error) => setUserState({ user: null, isUserLoading: false, userError: error })
     );
 
     return () => unsubscribe();
