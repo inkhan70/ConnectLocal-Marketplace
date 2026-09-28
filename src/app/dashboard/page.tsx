@@ -16,27 +16,31 @@ export default function DashboardPage() {
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-        )
+        );
     }
 
     if (!userProfile) {
-        // This should ideally not happen if the layout redirects, but as a fallback.
-        return <div>User profile not found. Please try logging in again.</div>
+        return (
+            <div className="flex justify-center items-center h-64 text-muted-foreground">
+                User profile not found. Please try logging in again.
+            </div>
+        );
     }
 
     // --- Dashboard Routing Logic ---
-    // For buyer role, always show buyer dashboard
+
+    // 1. Buyers always see the buyer-centric dashboard
     if (userProfile.role === 'buyer') {
         return <BuyerDashboard />;
     }
 
-    // For service providers, show services dashboard
-    if (userProfile.role === 'services' || userProfile.role === 'shopkeeper') {
+    // 2. Pure service providers route directly to the Role-based view
+    if (userProfile.role === 'services') {
         return <RoleDashboard />;
     }
 
-    // For all business roles (company, wholesaler, distributor, shopkeeper)
-    // Route based on dashboardType if available, otherwise fall back to category
+    // 3. All Business roles (company, wholesaler, distributor, shopkeeper, producer, hotel)
+    // Route dynamically based on dashboardType or fallback to business category
     const dashboardType = userProfile.dashboardType || userProfile.category?.toLowerCase();
 
     switch (dashboardType) {
@@ -53,11 +57,9 @@ export default function DashboardPage() {
         case 'electronics':
         case 'realestate':
         case 'pets':
-            // All other types use the generic business dashboard
-            // In the future, these can have specialized dashboards
             return <BusinessDashboard />;
         default:
-            // Fallback for any unknown dashboard type
+            // Fallback default for any undefined business categories
             return <BusinessDashboard />;
     }
 }
