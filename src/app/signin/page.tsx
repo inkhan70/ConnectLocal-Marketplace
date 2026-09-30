@@ -82,14 +82,27 @@ export default function SignInPage() {
             const userDocRef = doc(firestore, "users", user.uid);
             const userDocSnap = await getDoc(userDocRef);
             let userProfile: UserProfile;
+            let isNewUser = false;
+            
             if (userDocSnap.exists()) {
                 userProfile = userDocSnap.data() as UserProfile;
             } else {
+                // New user - create profile with buyer role by default
+                isNewUser = true;
                 userProfile = createDefaultUserProfile(user.uid, user.email || "", { fullName: user.displayName || "Google user", role: "buyer" });
                 await setDoc(userDocRef, userProfile);
             }
+            
             toast({ title: "Signed in with Google", description: "Welcome back to ConnectLocal." });
-            router.push(userProfile.isAdmin ? "/admin" : "/dashboard");
+            
+            // Redirect to role selection if new user, admin to admin dashboard, otherwise to dashboard
+            if (userProfile?.isAdmin) {
+                router.push("/admin");
+            } else if (isNewUser || !userProfile.role) {
+                router.push("/select-role");
+            } else {
+                router.push("/dashboard");
+            }
         } catch (error: any) {
             toast({ title: "Google sign-in failed", description: error.code === "auth/popup-closed-by-user" ? "The sign-in window was closed." : "Please try again.", variant: "destructive" });
         } finally {
@@ -121,11 +134,13 @@ export default function SignInPage() {
             const userDocRef = doc(firestore, "users", user.uid);
             const userDocSnap = await getDoc(userDocRef);
             let userProfile: UserProfile | null = null;
+            let isNewUser = false;
 
             if (userDocSnap.exists()) {
                 userProfile = userDocSnap.data() as UserProfile;
             } else {
                 // This is an old user. Create a profile for them on the fly.
+                isNewUser = true;
                 console.log(`User profile for ${user.uid} not found. Creating a new one.`);
                 const newUserProfile = createDefaultUserProfile(user.uid, user.email || '', {
                     fullName: user.displayName || 'New User',
@@ -144,8 +159,11 @@ export default function SignInPage() {
                 description: t('toast.signin_success_desc'),
             });
 
+            // Redirect logic: admin -> admin, new user -> role selection, existing user -> dashboard
             if (userProfile?.isAdmin) {
                 router.push("/admin");
+            } else if (isNewUser || !userProfile.role) {
+                router.push("/select-role");
             } else {
                 router.push("/dashboard");
             }
@@ -181,7 +199,7 @@ export default function SignInPage() {
           <Button type="button" variant="outline" className="mb-6 w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
             Continue with Google
           </Button>
-          <div className="relative mb-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or use email</span></div></div>
+          <div className="relative mb-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase bg-background px-2 text-muted-foreground">Or</div></div>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -260,5 +278,3 @@ export default function SignInPage() {
     </div>
   );
 }
-
-    

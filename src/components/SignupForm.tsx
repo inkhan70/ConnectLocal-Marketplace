@@ -167,7 +167,8 @@ export function SignupForm() {
                 await setDoc(userRef, createDefaultUserProfile(user.uid, user.email || "", { role: "buyer", fullName: user.displayName || "Google user" }));
             }
             toast({ title: "Google account connected", description: "Complete your business profile from dashboard settings." });
-            router.push("/dashboard");
+            // Redirect to role selection for new Google signup users
+            router.push("/select-role");
         } catch (error: any) {
             toast({ title: "Google sign-up failed", description: error.code === "auth/popup-closed-by-user" ? "The sign-in window was closed." : "Please try again.", variant: "destructive" });
         } finally {
@@ -257,7 +258,7 @@ export function SignupForm() {
           <Button type="button" variant="outline" className="mb-6 w-full" onClick={handleGoogleSignUp} disabled={isLoading}>
             Continue with Google
           </Button>
-          <div className="relative mb-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or create with email</span></div></div>
+          <div className="relative mb-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase bg-background px-2 text-muted-foreground">Or</div></div>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                   control={form.control}
