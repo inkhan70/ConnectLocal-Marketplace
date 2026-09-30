@@ -39,12 +39,13 @@ export default function PricingPage() {
   const handlePlanSelect = (planId: string) => {
     if (!userProfile) {
       // Redirect to sign-in if not authenticated
-      router.push(`/signin?redirect=/pricing?plan=${planId}`);
+      const checkoutPath = `/dashboard/subscription?plan=${encodeURIComponent(planId)}`;
+      router.push(`/signin?redirect=${encodeURIComponent(checkoutPath)}`);
       return;
     }
 
     // Store selected plan and redirect to checkout/confirmation
-    router.push(`/dashboard/subscription?plan=${planId}`);
+    router.push(`/dashboard/subscription?plan=${encodeURIComponent(planId)}`);
   };
 
   const sortedPlans = plans && Array.isArray(plans)

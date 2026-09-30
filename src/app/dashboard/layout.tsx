@@ -78,6 +78,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!loading) {
             if (!user || !user.emailVerified) {
                 router.push('/signin');
+            } else if (userProfile?.needsRoleSelection) {
+                router.push('/select-role');
             }
         }
     }, [user, loading, router]);

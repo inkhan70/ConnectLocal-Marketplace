@@ -164,7 +164,10 @@ export function SignupForm() {
             const userRef = doc(firestore, "users", user.uid);
             const existing = await getDoc(userRef);
             if (!existing.exists()) {
-                await setDoc(userRef, createDefaultUserProfile(user.uid, user.email || "", { role: "buyer", fullName: user.displayName || "Google user" }));
+                await setDoc(userRef, {
+                    ...createDefaultUserProfile(user.uid, user.email || "", { role: "buyer", fullName: user.displayName || "Google user" }),
+                    needsRoleSelection: true,
+                });
             }
             toast({ title: "Google account connected", description: "Complete your business profile from dashboard settings." });
             // Redirect to role selection for new Google signup users
@@ -199,7 +202,10 @@ export function SignupForm() {
                         isAdmin = false;
                     }
                     
-                    const newUserProfile = createDefaultUserProfile(user.uid, values.email, values, isAdmin);
+                    const newUserProfile = {
+                        ...createDefaultUserProfile(user.uid, values.email, values, isAdmin),
+                        needsRoleSelection: true,
+                    };
                     
                     transaction.set(userRef, newUserProfile);
                 });

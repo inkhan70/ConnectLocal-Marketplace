@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
@@ -30,6 +30,8 @@ const BUSINESS_ROLES = [
 
 export default function SelectRolePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get("redirect");
   const { userProfile, loading } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -58,6 +60,7 @@ export default function SelectRolePage() {
       const userRef = doc(firestore, "users", userProfile.uid);
       await updateDoc(userRef, {
         role: selectedRole,
+        needsRoleSelection: false,
       });
 
       toast({
@@ -65,7 +68,7 @@ export default function SelectRolePage() {
         description: `You've been set up as a ${BUSINESS_ROLES.find(r => r.id === selectedRole)?.label}.`,
       });
 
-      router.push("/dashboard");
+      router.push(redirectPath && redirectPath.startsWith("/") ? redirectPath : "/dashboard");
     } catch (error: any) {
       console.error("Error updating role:", error);
       toast({
