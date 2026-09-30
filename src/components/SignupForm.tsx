@@ -104,6 +104,43 @@ export function SignupForm() {
 
     // Load subcategories from URL params if provided
     useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const result = await (firebaseAuth as any).getRedirectResult(auth);
+                if (!result || cancelled) return;
+
+                const user = result.user;
+                const userRef = doc(firestore, "users", user.uid);
+                const existing = await getDoc(userRef);
+                if (!existing.exists()) {
+                    await setDoc(userRef, {
+                        ...createDefaultUserProfile(user.uid, user.email || "", {
+                            role: "buyer",
+                            fullName: user.displayName || "Google user",
+                        }),
+                        needsRoleSelection: true,
+                    });
+                }
+                router.push("/select-role");
+            } catch (error: any) {
+                if (!cancelled) {
+                    toast({
+                        title: "Google sign-up failed",
+                        description: error?.code || "Please try again.",
+                        variant: "destructive",
+                    });
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [auth, firestore, router, toast]);
+
+    useEffect(() => {
         const categoryParam = searchParams.get('category');
         const subcategoryParam = searchParams.get('subcategory');
         
@@ -159,6 +196,11 @@ export function SignupForm() {
         setIsLoading(true);
         try {
             const provider = new (firebaseAuth as any).GoogleAuthProvider();
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile) {
+                await (firebaseAuth as any).signInWithRedirect(auth, provider);
+                return;
+            }
             const result = await (firebaseAuth as any).signInWithPopup(auth, provider);
             const user = result.user;
             const userRef = doc(firestore, "users", user.uid);
