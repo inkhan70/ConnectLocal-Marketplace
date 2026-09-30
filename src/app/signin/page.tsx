@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState } from "react";
@@ -44,8 +45,10 @@ const formSchema = z.object({
   rememberMe: z.boolean().default(false).optional(),
 });
 
-export default function SignInPage() {
+function SignInContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectPath = searchParams.get("redirect");
     const { toast } = useToast();
     const { t } = useLanguage();
     const [isLoading, setIsLoading] = useState(false);
@@ -98,10 +101,11 @@ export default function SignInPage() {
             // Redirect to role selection if new user, admin to admin dashboard, otherwise to dashboard
             if (userProfile?.isAdmin) {
                 router.push("/admin");
-            } else if (isNewUser || !userProfile.role) {
-                router.push("/select-role");
+            } else if (isNewUser || !userProfile.role || userProfile.needsRoleSelection) {
+                const roleUrl = redirectPath ? `/select-role?redirect=${encodeURIComponent(redirectPath)}` : "/select-role";
+                router.push(roleUrl);
             } else {
-                router.push("/dashboard");
+                router.push(redirectPath && redirectPath.startsWith("/") ? redirectPath : "/dashboard");
             }
         } catch (error: any) {
             toast({ title: "Google sign-in failed", description: error.code === "auth/popup-closed-by-user" ? "The sign-in window was closed." : "Please try again.", variant: "destructive" });
@@ -162,10 +166,11 @@ export default function SignInPage() {
             // Redirect logic: admin -> admin, new user -> role selection, existing user -> dashboard
             if (userProfile?.isAdmin) {
                 router.push("/admin");
-            } else if (isNewUser || !userProfile.role) {
-                router.push("/select-role");
+            } else if (isNewUser || !userProfile.role || userProfile.needsRoleSelection) {
+                const roleUrl = redirectPath ? `/select-role?redirect=${encodeURIComponent(redirectPath)}` : "/select-role";
+                router.push(roleUrl);
             } else {
-                router.push("/dashboard");
+                router.push(redirectPath && redirectPath.startsWith("/") ? redirectPath : "/dashboard");
             }
             
         } catch (error: any) {
@@ -276,5 +281,13 @@ export default function SignInPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[calc(100vh-14rem)] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <SignInContent />
+    </Suspense>
   );
 }

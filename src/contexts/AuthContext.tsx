@@ -11,6 +11,8 @@ export interface UserProfile {
     businessName: string;
     fullName?: string;
     role: string;
+    /** True until the user completes the post-sign-in role selection step. */
+    needsRoleSelection?: boolean;
     category: string;
     subcategoryId?: string; // Selected subcategory ID from detailed category list
     subcategoryName?: string; // Display name of selected subcategory
