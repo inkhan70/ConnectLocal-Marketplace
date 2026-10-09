@@ -1,0 +1,198 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile, which can be a business or a buyer.",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique ID from Firebase Auth." },
+        "email": { "type": "string", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["company", "wholesaler", "distributor", "shopkeeper", "buyer", "admin"], "description": "The user's role in the application." },
+        "businessName": { "type": "string", "description": "The name of the business (for business roles)." },
+        "fullName": { "type": "string", "description": "The full name of the user (for buyer role)." },
+        "category": { "type": "string", "description": "The primary business category (for business roles)." },
+        "address": { "type": "string", "description": "The user's or business's full address." },
+        "city": { "type": "string", "description": "The city of the user or business." },
+        "state": { "type": "string", "description": "The state or province." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The timestamp when the account was created." },
+        "isAdmin": { "type": "boolean", "description": "Flag to indicate if the user is an administrator." },
+        "purchaseHistory": { "type": "array", "items": { "type": "string" }, "description": "List of order IDs for a buyer." },
+        "ghostCoins": { "type": "number", "description": "The number of reward coins a buyer has." },
+        "storefrontWallpaper": { "type": "string", "format": "uri", "description": "URL for the business's custom storefront wallpaper." },
+        "balance": { "type": "number", "description": "The user's account balance." }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a category of business (e.g., food, electronics).",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the category." },
+        "name": { "type": "string", "description": "Name of the category (e.g., Food, Electronics)." },
+        "description": { "type": "string", "description": "A brief description of the category." }
+      },
+      "required": ["id", "name"]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product line or brand sold by a business.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the product." },
+        "userId": { "type": "string", "description": "Reference to the UserProfile of the business owner." },
+        "name": { "type": "string", "description": "Name of the product line or brand." },
+        "description": { "type": "string", "description": "Detailed description of the product line." },
+        "status": { "type": "string", "enum": ["Active", "Archived", "Low Stock", "Out of Stock"], "description": "The current status of the product." },
+        "inventory": { "type": "number", "description": "Total inventory count for all varieties of this product." },
+        "rating": { "type": "number", "description": "Average rating of the product from 1 to 5." },
+        "reviewCount": { "type": "number", "description": "Total number of reviews for the product." },
+        "varieties": {
+          "type": "array",
+          "description": "Different versions of the product (e.g., size, color).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "image": { "type": "string", "format": "uri" },
+              "dataAiHint": { "type": "string" }
+            },
+            "required": ["id", "name", "price"]
+          }
+        }
+      },
+      "required": ["id", "userId", "name", "status", "inventory"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed by a guest or buyer.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the order." },
+        "buyerId": { "type": "string", "description": "Reference to the UserProfile of the buyer." },
+        "businessId": { "type": "string", "description": "Reference to the UserProfile of the business fulfilling the order." },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "productName": { "type": "string" },
+              "varietyId": { "type": "string" },
+              "varietyName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "image": { "type": "string", "format": "uri" }
+            }
+          }
+        },
+        "deliveryAddress": { "type": "string" },
+        "totalCost": { "type": "number" },
+        "orderDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"], "description": "The current status of the order." }
+      },
+      "required": ["id", "buyerId", "businessId", "items", "deliveryAddress", "totalCost", "orderDate", "status"]
+    },
+    "Chat": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Chat",
+      "type": "object",
+      "description": "Represents a chat conversation between two or more users.",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageTimestamp": { "type": "string", "format": "date-time" },
+        "participantProfiles": { "type": "object" }
+      },
+      "required": ["id", "participants"]
+    },
+    "Message": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a single message within a chat.",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderId", "text", "timestamp"]
+    },
+    "Review": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Review",
+      "type": "object",
+      "description": "Represents a user review for a product.",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "productId", "userId", "userName", "rating", "createdAt"]
+    },
+     "Ad": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ad",
+      "type": "object",
+      "description": "Represents an advertisement to be displayed in the app.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string", "enum": ["ShoppingBag", "Award", "Megaphone"], "description": "The name of the lucide-react icon to display." },
+        "targetAudience": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["guest", "buyer", "company", "wholesaler", "distributor", "shopkeeper"] }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "description", "icon", "targetAudience", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores all user profiles, for both businesses and buyers. Uses the Firebase Auth UID as the document ID."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Stores all product lines. Products are linked to owners via the 'userId' field."
+    },
+    "/products/{productId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Stores reviews for a specific product."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores all orders placed in the application."
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Stores metadata for each chat conversation."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Stores messages for a specific chat conversation."
+    },
+    "/ads/{adId}": {
+        "schema": { "$ref": "#/entities/Ad" },
+        "description": "Stores advertisements managed by administrators."
+    }
+  }
+}

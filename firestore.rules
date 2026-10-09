@@ -1,0 +1,164 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
+    function isAdmin() { return signedIn() && userDoc(request.auth.uid).data.isAdmin == true; }
+    function hasPermission(permission) { return isAdmin() || (signedIn() && permission in userDoc(request.auth.uid).data.permissions); }
+
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public plan catalogue; only administrators may create or change plan definitions.
+    match /subscriptionPlans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Member-uploaded media is written by the server after entitlement/image processing checks.
+    match /mediaLibrary/{mediaId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      // Profiles are normally created by the server (/api/profile/bootstrap, Admin SDK). This rule only remains as a
+      // defensive fallback and lets a member create their OWN profile with strictly unprivileged defaults. Admin status,
+      // plans, balances, Ghost Coins, permissions and billing ids can never be set from the client.
+      allow create: if isOwner(userId)
+        && request.resource.data.get('isAdmin', false) == false
+        && request.resource.data.get('ghostCoins', 0) == 0
+        && request.resource.data.get('balance', 0) == 0
+        && request.resource.data.get('membershipTier', 'community') == 'community'
+        && request.resource.data.get('subscriptionPlanId', 'community') == 'community'
+        && request.resource.data.get('subscriptionSource', 'system') == 'system'
+        && request.resource.data.get('subscriptionStatus', 'active') == 'active'
+        && request.resource.data.get('ghostCoinOfferEnabled', false) == false
+        && request.resource.data.get('ghostCoinRewardPerSale', 0) == 0
+        && request.resource.data.get('storageLimitBytes', 0) <= 83886080
+        && request.resource.data.get('maxImages', 0) <= 15
+        && request.resource.data.get('maxListings', 0) <= 10
+        && request.resource.data.get('permissions', []).size() == 0
+        && !request.resource.data.keys().hasAny([
+             'stripeCustomerId', 'stripeSubscriptionId', 'subscriptionGrantedBy', 'subscriptionGrantedAt',
+             'subscriptionEndDate', 'cancelAtPeriodEnd', 'pendingSubscriptionPlanId', 'pendingSubscriptionSessionId',
+             'balanceCurrency', 'totalGhostCoinsEarned', 'lastGhostCoinConversion', 'audit', 'adminBootstrappedAt'
+           ]);
+      allow update: if isAdmin() || (
+        isOwner(userId) && (
+          // During onboarding, the client may only complete the role-selection fields.
+          (resource.data.needsRoleSelection == true &&
+           request.resource.data.needsRoleSelection == false &&
+           request.resource.data.roleSelectionCompleted == true &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'role', 'dashboardType', 'subcategoryId', 'subcategoryName',
+             'needsRoleSelection', 'roleSelectionCompleted', 'roleSelectedAt'
+           ])) ||
+          // Existing profile edits are allowed except security-sensitive role/membership/admin fields.
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+             'role', 'dashboardType', 'subcategoryId', 'subcategoryName',
+             'needsRoleSelection', 'roleSelectionCompleted', 'isAdmin',
+             'membershipTier', 'permissions', 'ghostCoins', 'balance', 'balanceCurrency',
+             'totalGhostCoinsEarned', 'lastGhostCoinConversion', 'ghostCoinRewardPerSale',
+             'ghostCoinMinimumQuantity', 'ghostCoinOfferEnabled',
+             'subscriptionPlanId', 'subscriptionStartDate', 'subscriptionEndDate',
+             'subscriptionStatus', 'storageLimitBytes', 'usedStorageBytes',
+             'maxListings', 'currentListings', 'maxImages', 'subscriptionFeatures',
+             'stripeCustomerId', 'stripeSubscriptionId', 'cancelAtPeriodEnd',
+             'pendingSubscriptionPlanId', 'pendingSubscriptionSessionId',
+             'subscriptionSource', 'subscriptionGrantedBy', 'subscriptionGrantedAt',
+             'totalItemsPurchased', 'purchaseHistory', 'audit', 'adminBootstrappedAt'
+           ]))
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Buyer-specific saved businesses. Guests use local storage; only authenticated users reach Firestore.
+    match /users/{userId}/favorites/{businessId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.id == businessId;
+      allow delete: if isOwner(userId);
+    }
+
+    // Lightweight buyer history for businesses they have contacted. No private chat content is stored here.
+    match /users/{userId}/recentBusinesses/{businessId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.id == businessId;
+      allow delete: if isOwner(userId);
+    }
+
+    // Subscription grants/revocations are written by the Admin SDK. Only administrators may read the audit trail.
+    match /subscriptionAudit/{auditId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      // Product mutations are server-authoritative so subscription image/listing quotas cannot be bypassed.
+      allow create, update, delete: if isAdmin();
+
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      }
+    }
+
+    // Orders are server-authoritative. Clients may read their own orders, but creation,
+    // stock changes, payment state, pickup verification, refunds and status transitions
+    // happen through protected server routes / provider webhooks.
+    match /orders/{orderId} {
+      allow get, list: if signedIn() && (resource.data.buyerId == request.auth.uid || resource.data.businessId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /refunds/{refundId} {
+      allow read: if signedIn() && (resource.data.buyerId == request.auth.uid || resource.data.businessId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /chats/{chatId} {
+      function chatParticipant() {
+        return signedIn() && request.auth.uid in resource.data.participants;
+      }
+      allow get, list: if chatParticipant();
+      // Participants may update the preview fields but can never change who is in the conversation.
+      allow update: if chatParticipant() && request.resource.data.participants == resource.data.participants;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // senderId must be the signed-in user, otherwise participants could post as each other.
+        allow create: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if hasPermission('ads.manage');
+    }
+
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+  }
+}
