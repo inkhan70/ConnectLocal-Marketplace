@@ -27,6 +27,8 @@ export interface BootstrapCaller {
   email?: string | null;
   emailVerified: boolean;
   displayName?: string | null;
+  /** Privileged claim set by the admin panel; used to repair a stale profile flag. */
+  isAdminClaim?: boolean;
 }
 
 export interface BootstrapProfileHints {
@@ -95,7 +97,7 @@ export async function bootstrapProfile(
     }
 
     const existing: any = userSnap.exists ? userSnap.data() : null;
-    const alreadyAdmin = existing?.isAdmin === true;
+    const alreadyAdmin = existing?.isAdmin === true || caller.isAdminClaim === true;
 
     let promote = false;
     let deferredReason: BootstrapResult['deferredReason'];
@@ -126,7 +128,7 @@ export async function bootstrapProfile(
       profileCreated = true;
     }
 
-    if (promote) {
+    if (promote || caller.isAdminClaim === true) {
       tx.set(userRef, {
         isAdmin: true,
         needsRoleSelection: false,
@@ -134,7 +136,9 @@ export async function bootstrapProfile(
         adminBootstrappedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-      tx.set(bootRef, { initialized: true, reason: 'first_admin', firstAdminUid: caller.uid, at: FieldValue.serverTimestamp() });
+      if (promote) {
+        tx.set(bootRef, { initialized: true, reason: 'first_admin', firstAdminUid: caller.uid, at: FieldValue.serverTimestamp() });
+      }
     } else if (!initialized && adminExists) {
       // An admin already exists (pre-existing deployment): record it permanently, promote nobody.
       tx.set(bootRef, { initialized: true, reason: 'admin_exists', at: FieldValue.serverTimestamp() });
