@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         email: decoded.email || null,
         emailVerified: decoded.email_verified === true,
         displayName: (decoded as any).name || null,
+        isAdminClaim: (decoded as any).isAdmin === true,
       },
       sanitizeHints(body?.profile),
     );
