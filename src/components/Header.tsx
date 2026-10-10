@@ -19,8 +19,9 @@ import { Cart } from './Cart';
 
 export function Header() {
   const { language, setLanguage, t, availableLanguages } = useLanguage();
-  const { user } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const firebaseAuth = useFirebaseAuth();
+  const isAdmin = userProfile?.isAdmin === true;
   const router = useRouter();
   
   const handleSignOut = async () => {
@@ -41,7 +42,11 @@ export function Header() {
             <Link href="/favorites" className="transition-colors hover:text-foreground/80 text-foreground/60 flex items-center gap-1">
                 <Heart className="h-4 w-4" /> Favorites
             </Link>
-            {user && user.emailVerified && <Link href="/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">{t('header.dashboard')}</Link>}
+            {user && user.emailVerified && !loading && (
+              <Link href={isAdmin ? "/admin" : "/dashboard"} className="transition-colors hover:text-foreground/80 text-foreground/60">
+                {isAdmin ? "Admin Dashboard" : t('header.dashboard')}
+              </Link>
+            )}
           </nav>
         </div>
         
@@ -64,9 +69,11 @@ export function Header() {
                     <Heart className="h-4 w-4" /> Favorites
                   </Link>
                 </DropdownMenuItem>
-                {user && user.emailVerified && (
+                {user && user.emailVerified && !loading && (
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard">{t('header.dashboard')}</Link>
+                    <Link href={isAdmin ? "/admin" : "/dashboard"}>
+                      {isAdmin ? "Admin Dashboard" : t('header.dashboard')}
+                    </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem>
@@ -132,7 +139,11 @@ export function Header() {
                         <Link href="/favorites" className="transition-colors hover:text-foreground/80 text-foreground/60 flex items-center gap-1">
                             <Heart className="h-4 w-4" /> Favorites
                         </Link>
-                         {user && user.emailVerified && <Link href="/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">{t('header.dashboard')}</Link>}
+                         {user && user.emailVerified && !loading && (
+              <Link href={isAdmin ? "/admin" : "/dashboard"} className="transition-colors hover:text-foreground/80 text-foreground/60">
+                {isAdmin ? "Admin Dashboard" : t('header.dashboard')}
+              </Link>
+            )}
                         
                         <Accordion type="single" collapsible className="w-full">
                             <AccordionItem value="item-1" className="border-b-0">

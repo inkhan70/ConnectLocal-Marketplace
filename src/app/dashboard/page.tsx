@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { BuyerDashboard } from './buyer-dashboard';
@@ -10,8 +12,15 @@ import { RoleDashboard } from './role-dashboard';
 
 export default function DashboardPage() {
     const { userProfile, loading } = useAuth();
+    const router = useRouter();
 
-    if (loading) {
+    useEffect(() => {
+        if (!loading && userProfile?.isAdmin) {
+            router.replace('/admin');
+        }
+    }, [loading, userProfile?.isAdmin, router]);
+
+    if (loading || userProfile?.isAdmin) {
         return (
              <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
