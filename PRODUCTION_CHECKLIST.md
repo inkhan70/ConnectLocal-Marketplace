@@ -1,0 +1,26 @@
+# Production checklist
+
+- [x] Server-side order creation
+- [x] Atomic stock reservation
+- [x] Server-side price validation
+- [x] Delivery quote calculation
+- [x] Locked order totals
+- [x] Pickup code generation
+- [x] Pickup verification
+- [x] Order state machine
+- [x] Buyer cancellation rules
+- [x] Refund request rules
+- [x] Admin refund decision endpoint
+- [x] In-app order notifications
+- [x] Admin Auth + Firestore user management endpoint
+- [x] Chat participant rule fix
+- [x] Stripe Checkout adapter
+- [x] Stripe webhook signature verification
+- [x] PayPal adapter
+- [ ] JazzCash merchant adapter: requires merchant credentials/API contract
+- [ ] Easypaisa merchant adapter: requires merchant credentials/API contract
+- [ ] Full browser payment UI for Stripe/PayPal provider SDKs
+- [ ] Firebase App Hosting deployment test with real project secrets
+- [ ] Real sandbox transaction tests for each enabled provider
+- [ ] Load/concurrency test against production Firebase project
+- [ ] FCM push notification credentials and device testing

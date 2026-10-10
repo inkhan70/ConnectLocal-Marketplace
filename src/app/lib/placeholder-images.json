@@ -1,0 +1,39 @@
+
+{
+  "businesses": {
+    "farm": "https://picsum.photos/seed/farm/350/200",
+    "warehouse": "https://picsum.photos/seed/warehouse/350/200",
+    "food_packaging": "https://picsum.photos/seed/foodpack/350/200",
+    "beverage_bottles": "https://picsum.photos/seed/beverage/350/200",
+    "corner_store": "https://picsum.photos/seed/cornerstore/350/200",
+    "vegetable_stand": "https://picsum.photos/seed/vegstand/350/200",
+    "electronics_store": "https://picsum.photos/seed/electronics/350/200",
+    "shoe_store": "https://picsum.photos/seed/shoes/350/200",
+    "supermarket_aisle": "https://picsum.photos/seed/aisle/350/200"
+  },
+  "products": {
+    "generic": "https://picsum.photos/seed/product/300/300",
+    "apple": "https://picsum.photos/seed/apple/300/300",
+    "bread": "https://picsum.photos/seed/bread/300/300",
+    "egg_carton": "https://picsum.photos/seed/eggs/300/300",
+    "milk_carton": "https://picsum.photos/seed/milk/300/300",
+    "yogurt": "https://picsum.photos/seed/yogurt/300/300",
+    "avocado": "https://picsum.photos/seed/avocado/300/300",
+    "dashboard_product": "https://picsum.photos/seed/dashprod/40/40"
+  },
+  "varieties": {
+    "white_bread": "https://picsum.photos/seed/whitebread/500/500",
+    "brown_bread": "https://picsum.photos/seed/brownbread/500/500",
+    "herb_bread": "https://picsum.photos/seed/herbbread/500/500",
+    "variety_thumb": "https://picsum.photos/seed/varietythumb/100/100"
+  },
+  "home": {
+    "hero": "https://picsum.photos/seed/vegstand/600/400"
+  },
+  "product_form": {
+    "preview": "https://picsum.photos/seed/preview/300/200"
+  },
+  "search": {
+    "result": "https://picsum.photos/seed/searchresult/320/180"
+  }
+}

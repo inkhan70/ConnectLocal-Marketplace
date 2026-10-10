@@ -1,0 +1,27 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "database": "(default)"
+  },
+  "storage": {
+    "rules": "storage.rules",
+    "bucket": "distributors-connect-vrglt.firebasestorage.app"
+  },
+  "apphosting": {
+    "backends": [
+      {
+        "id": "business-web",
+        "rootDir": "./" 
+      }
+    ],
+    "alwaysDeployFromSource": true
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "*/.",
+      "*/node_modules/*"
+    ]
+  }
+}
