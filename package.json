@@ -6,11 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "jest"
   },
   "engines": {
-    "node": "20"
+    "node": "24.x"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "1.27.0",
