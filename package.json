@@ -10,7 +10,7 @@
     "test": "jest"
   },
   "engines": {
-    "node": "20"
+    "node": "24.x"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "1.27.0",
