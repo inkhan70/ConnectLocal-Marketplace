@@ -23,6 +23,10 @@ export async function POST(request: NextRequest) {
     if (order.status !== 'pending_payment') return jsonError('This order does not require payment.', 409);
 
     const method = order.paymentMethod as Method;
+    const total = Number(order.totalCost);
+    const currency = String(order.currency || process.env.MARKETPLACE_CURRENCY || 'USD').trim().toUpperCase();
+    if (!Number.isFinite(total) || total <= 0 || total > 10_000_000) return jsonError('The order total is invalid.', 422);
+    if (!/^[A-Z]{3}$/.test(currency)) return jsonError('The order currency is invalid.', 422);
     if (method === 'cod') {
       await ref.update({ paymentStatus: 'cod_pending', status: 'paid', updatedAt: new Date() });
       return NextResponse.json({ success: true, provider: 'cod', status: 'paid' });
@@ -44,17 +48,20 @@ export async function POST(request: NextRequest) {
 
 async function createStripePayment(ref: DocumentReference, order: any) {
   const secret = process.env.STRIPE_SECRET_KEY;
+  const total = Number(order.totalCost);
+  const currency = String(order.currency || process.env.MARKETPLACE_CURRENCY || 'USD').trim().toUpperCase();
   if (!secret) return jsonError('Stripe sandbox is not configured. Set STRIPE_SECRET_KEY on the server.', 503);
   const params = new URLSearchParams();
   params.set('mode', 'payment');
-  params.set('success_url', `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/orders?payment=success&orderId=${encodeURIComponent(order.id)}`);
-  params.set('cancel_url', `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/orders?payment=cancelled&orderId=${encodeURIComponent(order.id)}`);
-  params.set('line_items[0][price_data][currency]', String(order.currency || process.env.MARKETPLACE_CURRENCY || 'usd').toLowerCase());
+  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  params.set('success_url', `${appUrl}/dashboard/orders?payment=success&orderId=${encodeURIComponent(order.id)}`);
+  params.set('cancel_url', `${appUrl}/dashboard/orders?payment=cancelled&orderId=${encodeURIComponent(order.id)}`);
+  params.set('line_items[0][price_data][currency]', currency.toLowerCase());
   params.set('line_items[0][price_data][product_data][name]', `ConnectLocal order ${order.id}`);
-  params.set('line_items[0][price_data][unit_amount]', String(Math.round(Number(order.totalCost) * 100)));
+  params.set('line_items[0][price_data][unit_amount]', String(Math.round(total * 100)));
   params.set('line_items[0][quantity]', '1');
   params.set('metadata[orderId]', String(order.id));
-  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: params });
+  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': `checkout_${String(order.id)}` }, body: params });
   const data = await response.json();
   if (!response.ok) return jsonError(data?.error?.message || 'Stripe could not create the payment.', 502);
   await ref.update({ paymentProvider: 'stripe', paymentSessionId: data.id, updatedAt: new Date() });
@@ -65,6 +72,8 @@ async function createPayPalPayment(ref: DocumentReference, order: any) {
   const client = process.env.PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_CLIENT_SECRET;
   const base = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
+  const total = Number(order.totalCost);
+  const currency = String(order.currency || process.env.MARKETPLACE_CURRENCY || 'USD').trim().toUpperCase();
   if (!client || !secret) return jsonError('PayPal sandbox is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET on the server.', 503);
 
   const basic = Buffer.from(`${client}:${secret}`).toString('base64');
@@ -72,8 +81,7 @@ async function createPayPalPayment(ref: DocumentReference, order: any) {
   const tokenData = await tokenResponse.json();
   if (!tokenResponse.ok) return jsonError('PayPal authentication failed.', 502);
 
-  const currency = String(order.currency || process.env.MARKETPLACE_CURRENCY || 'USD').toUpperCase();
-  const paymentResponse = await fetch(`${base}/v2/checkout/orders`, { method: 'POST', headers: { Authorization: `Bearer ${tokenData.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ intent: 'CAPTURE', purchase_units: [{ reference_id: order.id, amount: { currency_code: currency, value: Number(order.totalCost).toFixed(2) }, description: `ConnectLocal order ${order.id}` }] }) });
+  const paymentResponse = await fetch(`${base}/v2/checkout/orders`, { method: 'POST', headers: { Authorization: `Bearer ${tokenData.access_token}`, 'Content-Type': 'application/json', 'PayPal-Request-Id': `paypal_${String(order.id)}` }, body: JSON.stringify({ intent: 'CAPTURE', purchase_units: [{ reference_id: order.id, amount: { currency_code: currency, value: total.toFixed(2) }, description: `ConnectLocal order ${order.id}` }] }) });
   const paymentData = await paymentResponse.json();
   if (!paymentResponse.ok) return jsonError('PayPal could not create the payment.', 502);
   await ref.update({ paymentProvider: 'paypal', paymentOrderId: paymentData.id, updatedAt: new Date() });
