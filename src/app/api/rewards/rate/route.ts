@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorStatus, getAdminDb, verifyBearerToken } from '@/lib/server/firebase-admin';
-import { getGhostCoinPkrValue } from '@/lib/rewards-domain';
+import { getGhostCoinUsdValue } from '@/lib/rewards-domain';
 import { calculateGhostCoinLocalValueLive, detectIpCurrency } from '@/lib/server/currency-location';
 
 export async function GET(request: NextRequest) {
@@ -10,18 +10,17 @@ export async function GET(request: NextRequest) {
     const snap = await db.collection('users').doc(decoded.uid).get();
     const profile: any = snap.data() || {};
     const location = await detectIpCurrency(request, profile);
-    const unit = await calculateGhostCoinLocalValueLive(1, location.currency, getGhostCoinPkrValue());
+    const coinUsdValue = getGhostCoinUsdValue();
+    const unit = await calculateGhostCoinLocalValueLive(1, location.currency, coinUsdValue);
 
     return NextResponse.json({
       currency: location.currency,
       countryCode: location.countryCode,
       countryName: location.countryName,
       locationSource: location.source,
-      ghostCoinPkrValue: getGhostCoinPkrValue(),
-      pkrValue: unit.pkrValue,
+      ghostCoinUsdValue: coinUsdValue,
       usdValue: unit.usdValue,
       localCoinValue: unit.localValue,
-      usdToPkr: unit.usdToPkr,
       usdToLocal: unit.usdToLocal,
       rateFetchedAt: unit.rateFetchedAt,
       nextRateUpdateAt: unit.nextRateUpdateAt,

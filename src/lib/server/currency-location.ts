@@ -122,22 +122,18 @@ export async function getLiveUsdRates(): Promise<FxSnapshot> {
   return fxCache;
 }
 
-export async function calculateGhostCoinLocalValueLive(coins: number, currency: string, coinPkrValue = 10) {
+export async function calculateGhostCoinLocalValueLive(coins: number, currency: string, coinUsdValue = 0.036) {
   const normalized = normalizeCurrency(currency) || 'USD';
   const snapshot = await getLiveUsdRates();
-  const usdToPkr = Number(snapshot.rates.PKR);
   const usdToLocal = Number(snapshot.rates[normalized]);
-  if (!(usdToPkr > 0) || !(usdToLocal > 0)) throw new Error(`No live FX rate is available for ${normalized}.`);
+  if (!(usdToLocal > 0)) throw new Error(`No live FX rate is available for ${normalized}.`);
 
-  const pkrValue = Math.max(0, Math.floor(coins)) * coinPkrValue;
-  const usdValue = pkrValue / usdToPkr;
+  const usdValue = Math.max(0, Math.floor(coins)) * coinUsdValue;
   const localValue = usdValue * usdToLocal;
   return {
     currency: normalized,
-    pkrValue,
     usdValue: Math.round(usdValue * 10000) / 10000,
     localValue: Math.round(localValue * 100) / 100,
-    usdToPkr,
     usdToLocal,
     rateFetchedAt: snapshot.fetchedAt,
     nextRateUpdateAt: snapshot.nextUpdateAt,
