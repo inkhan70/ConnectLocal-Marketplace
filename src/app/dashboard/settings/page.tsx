@@ -85,9 +85,7 @@ export default function SettingsPage() {
                 businessDescription: userProfile.businessDescription || "",
             });
             deliveryForm.reset({ pickupEnabled: userProfile.pickupEnabled !== false, deliveryEnabled: userProfile.deliveryEnabled !== false, deliveryBaseFee: userProfile.deliveryBaseFee || 0, deliveryPerKm: userProfile.deliveryPerKm || 0, deliveryFreeAbove: userProfile.deliveryFreeAbove || 0, maxDeliveryFee: userProfile.maxDeliveryFee || 0 });
-            if (userProfile.storefrontWallpaper) {
-                setWallpaperPreview(userProfile.storefrontWallpaper);
-            }
+            setWallpaperPreview(userProfile.storefrontWallpaper || null);
         }
     }, [userProfile, form]);
     
@@ -394,46 +392,49 @@ export default function SettingsPage() {
             </>
             )}
 
+            {isBusiness && (
             <Card>
                 <CardHeader>
                     <CardTitle>Storefront Hero Image</CardTitle>
                     <CardDescription>Upload a background image for your public business page. (Max 5MB)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                        <Label htmlFor="wallpaper-upload" className="flex-grow">
-                             <Button asChild variant="outline" className="w-full justify-center" disabled={isUploading}>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <Label htmlFor="wallpaper-upload" className="flex-1">
+                             <Button type="button" asChild variant="outline" className="w-full justify-center" disabled={isUploading}>
                                 <span>
                                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/> }
-                                    {isUploading ? "Uploading..." : "Upload New Image"}
+                                    {isUploading ? "Saving image..." : wallpaperPreview ? "Replace image" : "Upload image"}
                                 </span>
                              </Button>
-                             <Input id="wallpaper-upload" type="file" className="sr-only" accept="image/*" onChange={handleWallpaperChange} disabled={isUploading}/>
+                             <Input id="wallpaper-upload" type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" onChange={handleWallpaperChange} disabled={isUploading}/>
                         </Label>
                         {wallpaperPreview && (
-                             <Button variant="destructive" onClick={handleRemoveWallpaper} disabled={isUploading}>
+                             <Button type="button" variant="destructive" onClick={handleRemoveWallpaper} disabled={isUploading} className="sm:w-auto">
                                 <Trash2 className="mr-2 h-4 w-4"/>
-                                Remove
+                                {isUploading ? "Removing..." : "Remove image"}
                             </Button>
                         )}
                     </div>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, or WebP up to 5 MB. Replacing an image keeps one current storefront image.</p>
                     <div className="mt-2">
-                        <h3 className="text-sm font-medium mb-2">Preview:</h3>
-                        <div className="aspect-video w-full max-w-md rounded-md border border-dashed flex items-center justify-center bg-muted/50" >
+                        <h3 className="text-sm font-medium mb-2">Preview</h3>
+                        <div className="aspect-video w-full max-w-md rounded-md border border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
                              {isUploading ? (
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/>
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Saving image"/>
                              ) : wallpaperPreview ? (
-                                <Image src={wallpaperPreview} alt="Wallpaper preview" width={400} height={225} className="object-cover rounded-md"/>
+                                <Image src={wallpaperPreview} alt="Storefront hero image preview" width={800} height={450} className="h-full w-full object-cover"/>
                              ) : (
                                 <div className="text-center text-muted-foreground p-4">
-                                    <ImageIcon className="mx-auto h-8 w-8 mb-2" />
-                                    <p>No wallpaper set</p>
+                                    <ImageIcon className="mx-auto h-8 w-8 mb-2" aria-hidden="true" />
+                                    <p>No storefront image set</p>
                                 </div>
                              )}
                         </div>
                     </div>
                 </CardContent>
             </Card>
+            )}
 
              {isBusiness && (
                 <Card>
