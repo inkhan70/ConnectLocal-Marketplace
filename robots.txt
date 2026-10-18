@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://connectlocal-marketplace.vercel.app/sitemap.xml
