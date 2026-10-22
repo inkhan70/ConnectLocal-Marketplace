@@ -162,30 +162,25 @@ export default function SettingsPage() {
 
         setIsUploading(true);
         try {
-            // Use the fixed storage path for deletion.
-            // This assumes the wallpaper is always stored at `products/${user.uid}/storefront-wallpaper.jpg`.
+            // The profile reference is authoritative. Remove the known fixed-path
+            // object when possible, then always clear Firestore so a stale URL
+            // cannot keep showing the image publicly.
             const storagePath = `products/${user.uid}/storefront-wallpaper.jpg`;
-            const imageRef = ref(storage, storagePath);
-            await deleteObject(imageRef);
+            try {
+                await deleteObject(ref(storage, storagePath));
+            } catch (storageError: any) {
+                if (storageError?.code !== "storage/object-not-found") {
+                    console.warn("Wallpaper storage cleanup skipped:", storageError);
+                }
+            }
 
-            // Clear the download URL from the user's Firestore profile
-            const userDocRef = doc(firestore, "users", user.uid);
-            await updateDoc(userDocRef, { storefrontWallpaper: "" });
-            
+            await updateDoc(doc(firestore, "users", user.uid), { storefrontWallpaper: "" });
             setWallpaperPreview(null);
+            form.setValue("storefrontWallpaper", "", { shouldDirty: false });
             toast({ title: "Wallpaper Removed" });
         } catch (error: any) {
-            // Handle cases where the file might already be gone from Storage (e.g., manually deleted)
-            if (error.code === 'storage/object-not-found') {
-                console.warn("Attempted to delete wallpaper not found in storage. Clearing Firestore reference.", error);
-                const userDocRef = doc(firestore, "users", user.uid);
-                await updateDoc(userDocRef, { storefrontWallpaper: "" });
-                setWallpaperPreview(null);
-                toast({ title: "Wallpaper Removed (from profile, file not found in storage)" });
-            } else {
-                 console.error("Error removing wallpaper:", error);
-                 toast({ title: "Error", description: "Could not remove wallpaper. Please try again.", variant: "destructive" });
-            }
+            console.error("Error removing wallpaper profile reference:", error);
+            toast({ title: "Error", description: error?.message || "Could not remove wallpaper. Please try again.", variant: "destructive" });
         } finally {
             setIsUploading(false);
         }

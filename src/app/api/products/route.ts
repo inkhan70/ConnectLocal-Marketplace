@@ -111,10 +111,15 @@ async function saveImage(uid: string, productId: string, varietyId: string, data
 async function deleteStorageUrl(url: string) {
   if (!url) return;
   try {
-    const match = decodeURIComponent(url).match(/\/o\/([^?]+)/);
-    if (!match) return;
-    const bucket = getAdminStorage().bucket();
-    await bucket.file(match[1]).delete({ ignoreNotFound: true });
+    const decodedUrl = new URL(url);
+    const encodedObject = decodedUrl.pathname.match(/\/o\/([^/]+)$/)?.[1];
+    const objectPath = encodedObject
+      ? decodeURIComponent(encodedObject)
+      : decodedUrl.hostname === 'storage.googleapis.com'
+        ? decodeURIComponent(decodedUrl.pathname.split('/').slice(2).join('/'))
+        : '';
+    if (!objectPath) return;
+    await getAdminStorage().bucket().file(objectPath).delete({ ignoreNotFound: true });
   } catch (error) {
     console.warn('Unable to delete old image:', error);
   }
