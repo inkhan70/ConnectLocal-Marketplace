@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { FieldValue } from 'firebase-admin/firestore';
 import { authErrorStatus, getAdminDb, getAdminStorage, isAdminCaller, verifyBearerToken } from '@/lib/server/firebase-admin';
 import { getSubscriptionPlan } from '@/lib/server/subscription-admin';
-import { getSubscriptionStatus, planToEntitlements, SubscriptionEntitlements } from '@/lib/subscription-domain';
+import { DEFAULT_SUBSCRIPTION_PLANS, getSubscriptionStatus, planToEntitlements, SubscriptionEntitlements } from '@/lib/subscription-domain';
 
 export const runtime = 'nodejs';
 
@@ -86,8 +86,8 @@ async function getEntitlements(uid: string): Promise<SubscriptionEntitlements> {
   // Dates alone are not enough: a past_due / cancelled / inactive subscription must not keep paid-plan quotas.
   const storedStatus = user.subscriptionStatus ? String(user.subscriptionStatus) : 'active';
   if (effectiveStatus === 'active' && storedStatus === 'active' && plan) return planToEntitlements(plan);
-  const community = await getSubscriptionPlan('community');
-  if (!community) throw new Error('Community plan is not configured.');
+  const community = (await getSubscriptionPlan('community')) || DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === 'community');
+  if (!community) throw new Error('A default subscription plan could not be loaded.');
   return planToEntitlements(community);
 }
 
