@@ -137,7 +137,7 @@ function BusinessesContent() {
       // a real city coordinate because that creates false proximity results.
       lat: biz.latitude,
       lon: biz.longitude,
-      image: images.businesses.corner_store,
+      image: biz.storefrontWallpaper || images.businesses.corner_store,
       dataAiHint: 'business'
     }));
 
@@ -222,7 +222,7 @@ function BusinessesContent() {
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                   <Button asChild className="w-full">
-                    <Link href={`/businesses/${biz.uid}`}>
+                    <Link href={`/products/distributor/${biz.uid}`}>
                       {t('businesses.view_products')} <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>

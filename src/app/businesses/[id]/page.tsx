@@ -140,7 +140,7 @@ export default function BusinessProfilePage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <Image src={images.businesses.corner_store} alt="Provider" width={900} height={360} className="h-56 w-full rounded-lg object-cover" />
+          <Image src={profile.storefrontWallpaper || images.businesses.corner_store} alt={`${profile.businessName || profile.fullName || "Provider"} storefront`} width={900} height={360} className="h-56 w-full rounded-lg object-cover" />
           {profile.businessDescription && <p>{profile.businessDescription}</p>}
           <div className="flex items-start gap-2 text-muted-foreground">
             <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
