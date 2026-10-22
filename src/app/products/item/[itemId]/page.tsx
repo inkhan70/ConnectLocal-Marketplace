@@ -37,6 +37,15 @@ interface Product {
   varieties: Variety[];
 }
 
+interface SellerOffer {
+  businessName?: string;
+  ghostCoinOfferEnabled?: boolean | string;
+  ghostCoinRewardPerSale?: number;
+  ghostCoinsPerSale?: number;
+  ghostCoinMinimumQuantity?: number;
+  ghostCoinMinQuantity?: number;
+}
+
 interface Review {
   id: string;
   userName: string;
@@ -64,6 +73,11 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
 
   const productDocRef = useMemoFirebase(() => doc(firestore, `products/${params.itemId}`), [firestore, params.itemId]);
   const { data: product, isLoading: productLoading, error: productError } = useDoc<Product>(productDocRef);
+  const sellerDocRef = useMemoFirebase(() => product?.userId ? doc(firestore, `users/${product.userId}`) : null, [firestore, product?.userId]);
+  const { data: sellerOffer } = useDoc<SellerOffer>(sellerDocRef);
+  const ghostCoinReward = Math.max(0, Math.floor(Number(sellerOffer?.ghostCoinRewardPerSale ?? sellerOffer?.ghostCoinsPerSale ?? 0)));
+  const ghostCoinMinimumQuantity = Math.max(1, Math.floor(Number(sellerOffer?.ghostCoinMinimumQuantity ?? sellerOffer?.ghostCoinMinQuantity ?? 1)));
+  const ghostCoinOfferEnabled = (sellerOffer?.ghostCoinOfferEnabled === true || sellerOffer?.ghostCoinOfferEnabled === "true") && ghostCoinReward > 0;
 
   const reviewsRef = useMemoFirebase(() => collection(firestore, `products/${params.itemId}/reviews`), [firestore, params.itemId]);
   const { data: reviews, isLoading: reviewsLoading } = useCollection<Review>(reviewsRef);
@@ -249,6 +263,14 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
                 </div>
 
                 <p className="text-2xl font-bold text-primary pt-2">${selectedVariety.price.toFixed(2)}</p>
+                {ghostCoinOfferEnabled && (
+                  <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3" role="status">
+                    <p className="font-semibold text-primary">Ghost Coin offer</p>
+                    <p className="text-sm text-muted-foreground">
+                      Earn {ghostCoinReward} Ghost Coins when you buy {ghostCoinMinimumQuantity === 1 ? "this item" : `${ghostCoinMinimumQuantity} items`} from {sellerOffer?.businessName || "this seller"}.
+                    </p>
+                  </div>
+                )}
                 </CardHeader>
                 <CardContent>
                 <form>

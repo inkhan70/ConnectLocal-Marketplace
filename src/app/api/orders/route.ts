@@ -74,10 +74,12 @@ export async function POST(request: NextRequest) {
     const sellerSnap = await db.collection('users').doc(businessId).get();
     if (!sellerSnap.exists) return NextResponse.json({ error: 'Seller account could not be found.' }, { status: 409 });
     const seller: any = sellerSnap.data();
+    const configuredReward = Number(seller.ghostCoinRewardPerSale ?? seller.ghostCoinsPerSale ?? 0);
+    const configuredMinimumQuantity = Number(seller.ghostCoinMinimumQuantity ?? seller.ghostCoinMinQuantity ?? 1);
     const ghostCoinOffer = {
-      enabled: seller.ghostCoinOfferEnabled === true,
-      coinsPerSale: Math.max(0, Math.floor(Number(seller.ghostCoinRewardPerSale || 0))),
-      minimumQuantity: Math.max(1, Math.floor(Number(seller.ghostCoinMinimumQuantity || 1))),
+      enabled: (seller.ghostCoinOfferEnabled === true || seller.ghostCoinOfferEnabled === 'true') && Number.isFinite(configuredReward) && configuredReward > 0,
+      coinsPerSale: Math.max(0, Math.floor(Number.isFinite(configuredReward) ? configuredReward : 0)),
+      minimumQuantity: Math.max(1, Math.floor(Number.isFinite(configuredMinimumQuantity) ? configuredMinimumQuantity : 1)),
     };
     if (decoded && decoded.uid === businessId) return NextResponse.json({ error: 'You cannot purchase from your own business.' }, { status: 400 });
     if (deliveryMethod === 'pickup' && seller.pickupEnabled === false) return NextResponse.json({ error: 'This seller does not offer customer pickup.' }, { status: 400 });
