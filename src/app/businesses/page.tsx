@@ -59,7 +59,9 @@ function BusinessesContent() {
     services: 'services',
   };
   const role = roleMapping[roleParam] || 'shopkeeper';
-  const category = categoryParam === 'all' ? 'all' : capitalize(categoryParam);
+  // Firestore stores category keys (for example `automotive`), while the UI uses title case.
+  const category = categoryParam === 'all' ? 'all' : categoryParam.trim().toLowerCase();
+  const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
@@ -72,19 +74,9 @@ function BusinessesContent() {
     // Always filter by role
     constraints.push(where('role', '==', role));
 
-    // Add category filter if it's not 'all'
-    if (category !== 'all') {
-      constraints.push(where('category', '==', category));
-    }
-
-    // A subcategory is the authoritative provider type (e.g. health_doctor).
-    // This makes Medical -> Doctor show doctors rather than every medical business.
-    if (subcategoryParam) {
-      constraints.push(where('subcategoryId', '==', subcategoryParam));
-    }
-    
-    // The query requires a composite index on `role` and `category`. 
-    // Firestore will provide a link in the console error to create it automatically.
+    // Filter role server-side, then normalize category/subcategory values in the
+    // client. Older member profiles contain title-case category values and some
+    // were created before subcategoryId was required.
     return query(usersCollection, ...constraints);
   }, [firestore, role, category, subcategoryParam]);
 
@@ -130,21 +122,35 @@ function BusinessesContent() {
   useEffect(() => {
     if (!fetchedBusinesses) return;
 
-    const processedBusinesses: Business[] = fetchedBusinesses.map((biz) => ({
-      ...biz,
-      id: biz.uid,
-      // Never invent coordinates. Missing coordinates must never be turned into
-      // a real city coordinate because that creates false proximity results.
-      lat: biz.latitude,
-      lon: biz.longitude,
-      image: biz.storefrontWallpaper || images.businesses.corner_store,
-      dataAiHint: 'business'
-    }));
+    const processedBusinesses: Business[] = fetchedBusinesses
+      .filter((biz) => {
+        const storedCategory = String(biz.category || '').trim().toLowerCase();
+        const storedSubcategory = String(biz.subcategoryId || '').trim().toLowerCase();
+        if (category !== 'all' && storedCategory !== category && !storedSubcategory.includes(category)) return false;
+        if (subcategoryParam && storedSubcategory !== subcategoryParam.toLowerCase()) return false;
+        return true;
+      })
+      .map((biz) => ({
+        ...biz,
+        id: biz.uid,
+        // Never invent coordinates. Missing coordinates must never be turned into
+        // a real city coordinate because that creates false proximity results.
+        lat: biz.latitude,
+        lon: biz.longitude,
+        image: biz.storefrontWallpaper || images.businesses.corner_store,
+        dataAiHint: 'business'
+      }));
+
+    const matchingBusinesses = processedBusinesses.filter((biz) => {
+      if (!searchQuery) return true;
+      return [biz.businessName, biz.fullName, biz.address, biz.city, biz.subcategoryName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(searchQuery));
+    });
 
     if (userLocation) {
       const { latitude, longitude } = userLocation.coordinates;
-
-      const nearbyBusinesses = processedBusinesses
+      const nearbyBusinesses = matchingBusinesses
         .filter((biz) => Number.isFinite(biz.lat) && Number.isFinite(biz.lon))
         .map((biz) => ({
           ...biz,
@@ -154,19 +160,18 @@ function BusinessesContent() {
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 20);
 
-      // Strict radius semantics: if the user asked for nearby providers,
-      // never silently add providers outside the promised 100 km radius.
-      setDisplayedBusinesses(nearbyBusinesses);
+      // GPS is a sorting/filtering aid, not a hard requirement for discovery.
+      // Keep registered businesses visible when coordinates are missing or the
+      // member is outside the radius, especially for an explicit name search.
+      setDisplayedBusinesses(nearbyBusinesses.length > 0 ? nearbyBusinesses : matchingBusinesses.slice(0, 20));
     } else {
-      // Location permission was not granted/available. Show up to 20 matching
-      // providers without claiming that they are nearby.
-      setDisplayedBusinesses(processedBusinesses.slice(0, 20));
+      setDisplayedBusinesses(matchingBusinesses.slice(0, 20));
     }
-  }, [fetchedBusinesses, userLocation]);
+  }, [fetchedBusinesses, userLocation, searchQuery]);
 
 
   const roleTitle = t(`roles.${roleParam}`); // Use original plural param for display
-  const categoryTitle = category === 'all' ? 'All Businesses' : category;
+  const categoryTitle = category === 'all' ? 'All Businesses' : capitalize(category);
   const isLocationEnabled = !!userLocation;
 
   if (loading) {
