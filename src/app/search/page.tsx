@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query } from "firebase/firestore";
 import { Loader2, MapPin, Package, Store } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { UserProfile } from "@/contexts/AuthContext";
 import {
   cacheLocation,
@@ -21,6 +21,8 @@ type Product = {
   name?: string;
   description?: string;
   userId?: string;
+  category?: string;
+  businessName?: string;
   varieties?: Array<{ price?: number }>;
 };
 
@@ -30,7 +32,6 @@ type SearchResult =
 
 function SearchResultsContent() {
   const searchParams = useSearchParams();
-  const { user } = useUser();
   const searchTerm = searchParams.get("q")?.trim() || "";
   const city = searchParams.get("city")?.trim() || "";
   const maxDistance = Number(searchParams.get("maxDistance")) || 100;
@@ -39,26 +40,16 @@ function SearchResultsContent() {
   const firestore = useFirestore();
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
 
-  const productsQuery = useMemoFirebase(() => {
-    if (!searchTerm) return null;
-    return query(
-      collection(firestore, "products"),
-      where("name", ">=", searchTerm),
-      where("name", "<=", `${searchTerm}\uf8ff`),
-    );
-  }, [firestore, searchTerm]);
+  // Do not use case-sensitive range queries here. They miss existing members
+  // when the guest types a different case, searches a category, or searches a
+  // service role. Load the public catalog and normalize matching client-side.
+  const productsQuery = useMemoFirebase(() => query(collection(firestore, "products")), [firestore]);
 
   const businessesQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    const roles = ["company", "wholesaler", "distributor", "shopkeeper"];
-    const filters = [where("role", "in", roles)];
-    if (searchTerm) {
-      filters.push(where("businessName", ">=", searchTerm));
-      filters.push(where("businessName", "<=", `${searchTerm}\uf8ff`));
-    }
-    if (city) filters.push(where("city", "==", city));
-    return query(collection(firestore, "users"), ...filters);
-  }, [firestore, searchTerm, city, user]);
+    // Search must include service and automotive members, whose role/category
+    // values vary across profiles created by older signup flows.
+    return query(collection(firestore, "users"));
+  }, [firestore]);
 
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsQuery);
   const { data: businesses, isLoading: businessesLoading } = useCollection<UserProfile>(businessesQuery);
@@ -78,14 +69,23 @@ function SearchResultsContent() {
   }, []);
 
   const results = useMemo<SearchResult[]>(() => {
+    const normalizedTerm = searchTerm.toLocaleLowerCase();
     const productResults = (products || []).filter((product) => {
+      const searchable = [product.name, product.description, product.category, product.businessName]
+        .filter(Boolean).join(" ").toLocaleLowerCase();
+      if (normalizedTerm && !searchable.includes(normalizedTerm)) return false;
       const prices = product.varieties?.map((item) => Number(item.price)).filter(Number.isFinite) || [];
       const price = prices.length ? Math.min(...prices) : null;
       return (Number.isNaN(minPrice) || (price !== null && price >= minPrice)) &&
         (Number.isNaN(maxPrice) || (price !== null && price <= maxPrice));
     }).map((data) => ({ type: "product" as const, data }));
 
-    const businessResults = (businesses || []).map((business) => {
+    const businessResults = (businesses || []).filter((business) => {
+      const searchable = [business.businessName, business.fullName, business.category, business.subcategoryId, business.city, business.state]
+        .filter(Boolean).join(" ").toLocaleLowerCase();
+      return (!normalizedTerm || searchable.includes(normalizedTerm)) &&
+        (!city || String(business.city || "").toLocaleLowerCase() === city.toLocaleLowerCase());
+    }).map((business) => {
       if (!userLocation) return { type: "business" as const, data: business };
       const { latitude, longitude } = userLocation.coordinates;
       const distance = calculateDistance(latitude, longitude, business.latitude || 0, business.longitude || 0);
