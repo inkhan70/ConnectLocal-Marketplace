@@ -292,8 +292,8 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
                         <Label>{t('item_detail.quantity')}</Label>
                         <div className="flex items-center gap-2 mt-2">
                           <Button type="button" variant="outline" size="icon" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-4 w-4" /></Button>
-                          <Input type="number" value={quantity} readOnly className="w-16 text-center" onChange={e => setQuantity(parseInt(e.target.value) || 1)}/>
-                          <Button variant="outline" size="icon" onClick={() => setQuantity(q => q + 1)}><Plus className="h-4 w-4" /></Button>
+                          <Input type="number" min={1} step={1} value={quantity} className="w-16 text-center" onChange={e => setQuantity(Math.max(1, Number.parseInt(e.target.value, 10) || 1))} aria-label="Item quantity"/>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setQuantity(q => q + 1)} aria-label="Increase quantity"><Plus className="h-4 w-4" /></Button>
                         </div>
                       </div>
                   </div>

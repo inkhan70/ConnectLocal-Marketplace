@@ -168,12 +168,12 @@ export function Cart() {
           <ScrollArea className="flex-1"><div className="px-6 py-4 space-y-5">
             {sellers.length > 1 && <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">Your cart contains products from {sellers.length} sellers. Checkout currently processes one seller per transaction.</div>}
             {cart.map(item => (
-              <div key={item.varietyId} className="flex items-start gap-4">
+              <div key={`${item.productId}:${item.varietyId}`} className="flex items-start gap-4">
                 <Image src={item.image || images.varieties.variety_thumb} alt={item.varietyName} width={72} height={72} className="rounded-md object-cover" />
                 <div className="flex-1"><p className="font-semibold">{item.varietyName}</p><p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
-                  <div className="mt-2 flex items-center gap-2"><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.varietyId, item.quantity - 1)}><Minus className="h-4 w-4" /></Button><span>{item.quantity}</span><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.varietyId, item.quantity + 1)}><Plus className="h-4 w-4" /></Button></div>
+                  <div className="mt-2 flex items-center gap-2"><Button type="button" variant="outline" size="icon" className="h-7 w-7" aria-label={`Decrease quantity of ${item.varietyName}`} onClick={() => updateQuantity(item.productId, item.varietyId, item.quantity - 1)}><Minus className="h-4 w-4" /></Button><span aria-label={`Quantity: ${item.quantity}`}>{item.quantity}</span><Button type="button" variant="outline" size="icon" className="h-7 w-7" aria-label={`Increase quantity of ${item.varietyName}`} onClick={() => updateQuantity(item.productId, item.varietyId, item.quantity + 1)}><Plus className="h-4 w-4" /></Button></div>
                 </div>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.varietyId)}><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.productId, item.varietyId)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
             <Separator />
