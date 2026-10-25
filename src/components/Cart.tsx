@@ -188,9 +188,10 @@ export function Cart() {
           </div></ScrollArea>
         ) : <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center"><ShoppingCart className="h-16 w-16 text-muted-foreground" /><p className="text-muted-foreground">Your cart is empty.</p></div>}
 
-        <Dialog open={showCheckoutOptions} onOpenChange={setShowCheckoutOptions}><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>Checkout Options</DialogTitle><DialogDescription>Create an account for order history, or continue as a guest.</DialogDescription></DialogHeader>
-          <div className="space-y-4"><div className="border rounded-lg p-4 space-y-3"><div className="flex items-center gap-2 font-semibold"><Store className="h-4 w-4" />Create Account</div><p className="text-sm text-muted-foreground">Track orders, save purchase history and use your member benefits.</p><Button asChild className="w-full"><Link href="/signup">Register Now</Link></Button></div>
-          <div className="border rounded-lg p-4 space-y-4"><h3 className="font-semibold">Continue as Guest</h3><GuestCheckoutForm methods={paymentOptions} onSubmit={async data => { setDeliveryMethod('seller_delivery'); await createOrder(data); }} isLoading={isPlacingOrder} /></div></div>
+        <Dialog open={showCheckoutOptions} onOpenChange={setShowCheckoutOptions}><DialogContent className="w-[calc(100vw-1rem)] max-w-[600px] max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <DialogHeader className="pr-8"><DialogTitle>Checkout Options</DialogTitle><DialogDescription>Create an account for order history, or continue as a guest.</DialogDescription></DialogHeader>
+          <div className="min-w-0 space-y-4"><div className="rounded-lg border p-3 sm:p-4 space-y-3"><div className="flex items-center gap-2 font-semibold"><Store className="h-4 w-4 shrink-0" />Create Account</div><p className="text-sm text-muted-foreground">Track orders, save purchase history and use your member benefits.</p><Button asChild className="w-full"><Link href="/signup">Register Now</Link></Button></div>
+          <div className="rounded-lg border p-3 sm:p-4 space-y-4"><h3 className="font-semibold">Continue as Guest</h3><GuestCheckoutForm methods={paymentOptions} onSubmit={async data => { setDeliveryMethod('seller_delivery'); await createOrder(data); }} isLoading={isPlacingOrder} /></div></div>
         </DialogContent></Dialog>
       </SheetContent>
     </Sheet>
