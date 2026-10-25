@@ -15,8 +15,12 @@ export function BuyerDashboard() {
 
     useEffect(() => {
         if (!user) return;
-        user.getIdToken().then(token => fetch('/api/rewards/rate', { headers: { Authorization: `Bearer ${token}` } }))
-            .then(r => r.json()).then(data => { if (data.currency) setRate(data); }).catch(() => {});
+        let active = true;
+        user.getIdToken().then(async token => {
+            await fetch('/api/rewards/sync', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            return fetch('/api/rewards/rate', { headers: { Authorization: `Bearer ${token}` } });
+        }).then(r => r.json()).then(data => { if (active && data.currency) setRate(data); }).catch(() => {});
+        return () => { active = false; };
     }, [user]);
 
     const coins = Math.max(0, Math.floor(userProfile?.ghostCoins || 0));
