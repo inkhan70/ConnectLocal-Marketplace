@@ -1,4 +1,5 @@
 import { normalizePhone } from '@/lib/contact';
+import { resolveCategoryKey } from '@/lib/subcategories';
 
 /**
  * Public projection of a member profile.
@@ -43,7 +44,17 @@ export function toPublicBusiness(id: string, data: Record<string, any> | undefin
       if (phone.ok) out[field] = phone.e164;
       continue;
     }
-    out[field] = field === 'createdAt' ? toIso(data[field]) : data[field];
+    if (field === 'category') {
+      out[field] = resolveCategoryKey(String(data[field] || '')) || data[field];
+    } else {
+      out[field] = field === 'createdAt' ? toIso(data[field]) : data[field];
+    }
+  }
+  // Legacy profiles may have the business type in the name but no saved subcategory.
+  // Expose a stable label so guest search and category pages do not fall back to the role.
+  if (!out.subcategoryName) {
+    const text = `${out.businessName || ''} ${out.fullName || ''}`.toLowerCase();
+    if (/cafe|restaurant/.test(text)) out.subcategoryName = 'Cafe / Restaurant';
   }
   return out as PublicProfile;
 }
