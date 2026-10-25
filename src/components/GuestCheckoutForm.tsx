@@ -32,9 +32,9 @@ export function GuestCheckoutForm({ onSubmit, isLoading = false, methods = [{ va
   const [isSubmitting, setIsSubmitting] = useState(false);
   async function handleSubmit(values: GuestCheckoutFormValues) { setIsSubmitting(true); try { await onSubmit(values as GuestCheckoutData); } finally { setIsSubmitting(false); } }
 
-  return <Form {...form}><form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-    {([['fullName','Full Name'],['email','Email'],['phone','Phone'],['address','Address'],['city','City'],['state','State']] as const).map(([name,label]) => <FormField key={name} control={form.control} name={name} render={({ field }) => <FormItem><FormLabel>{label}</FormLabel><FormControl><Input type={name === 'email' ? 'email' : 'text'} {...field} /></FormControl><FormMessage /></FormItem>} />)}
-    <FormField control={form.control} name="paymentMethod" render={({ field }) => <FormItem><FormLabel>Payment Method</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>} />
+  return <Form {...form}><form onSubmit={form.handleSubmit(handleSubmit)} className="min-w-0 space-y-4">
+    {([['fullName','Full Name'],['email','Email'],['phone','Phone'],['address','Address'],['city','City'],['state','State']] as const).map(([name,label]) => <FormField key={name} control={form.control} name={name} render={({ field }) => <FormItem><FormLabel>{label}</FormLabel><FormControl><Input className="min-w-0 max-w-full" type={name === 'email' ? 'email' : 'text'} {...field} /></FormControl><FormMessage /></FormItem>} />)}
+    <FormField control={form.control} name="paymentMethod" render={({ field }) => <FormItem><FormLabel>Payment Method</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="w-full min-w-0"><SelectValue /></SelectTrigger></FormControl><SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>} />
     <Button type="submit" className="w-full" disabled={isSubmitting || isLoading}>{(isSubmitting || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Continue securely</Button>
   </form></Form>;
 }
