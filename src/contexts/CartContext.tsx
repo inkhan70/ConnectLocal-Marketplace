@@ -19,8 +19,8 @@ export interface CartItem {
 interface CartContextType {
     cart: CartItem[];
     addToCart: (item: CartItem) => void;
-    removeFromCart: (varietyId: string) => void;
-    updateQuantity: (varietyId: string, quantity: number) => void;
+    removeFromCart: (productId: string, varietyId: string) => void;
+    updateQuantity: (productId: string, varietyId: string, quantity: number) => void;
     clearCart: () => void;
     cartCount: number;
     subtotal: number;
@@ -67,19 +67,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     };
 
-    const removeFromCart = (varietyId: string) => {
-        setCart(prevCart => prevCart.filter(item => item.varietyId !== varietyId));
+    const removeFromCart = (productId: string, varietyId: string) => {
+        setCart(prevCart => prevCart.filter(item => !(item.productId === productId && item.varietyId === varietyId)));
     };
 
-    const updateQuantity = (varietyId: string, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromCart(varietyId);
-            return;
-        }
-        setCart(prevCart => 
-            prevCart.map(item => 
-                item.varietyId === varietyId ? { ...item, quantity } : item
-            )
+    const updateQuantity = (productId: string, varietyId: string, quantity: number) => {
+        const nextQuantity = Math.max(0, Math.floor(Number(quantity) || 0));
+        setCart(prevCart => nextQuantity === 0
+            ? prevCart.filter(item => !(item.productId === productId && item.varietyId === varietyId))
+            : prevCart.map(item => item.productId === productId && item.varietyId === varietyId ? { ...item, quantity: nextQuantity } : item)
         );
     };
 
