@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import { createDefaultUserProfile } from '@/lib/user-utils';
 import { findSubcategory } from '@/lib/subcategories';
+import { normalizePhone } from '@/lib/contact';
 
 /**
  * Server-authoritative first-admin bootstrap.
@@ -47,6 +48,8 @@ export interface BootstrapProfileHints {
   longitude?: number;
   /** True when the person already chose their role (and business type) on the sign-up form. */
   roleSelected?: boolean;
+  /** Business WhatsApp / call number typed at sign-up (validated and stored as +E.164). */
+  contactWhatsapp?: string;
 }
 
 export interface BootstrapResult {
@@ -86,6 +89,10 @@ export function sanitizeHints(raw: any): BootstrapProfileHints {
     hints.longitude = lon;
   }
   if (raw.roleSelected === true) hints.roleSelected = true;
+  if (raw.contactWhatsapp) {
+    const phone = normalizePhone(raw.contactWhatsapp, typeof raw.countryCode === 'string' ? raw.countryCode : undefined);
+    if (phone.ok) hints.contactWhatsapp = phone.e164;
+  }
   const cc = cleanString(raw.countryCode, 2);
   if (cc && /^[A-Za-z]{2}$/.test(cc)) hints.countryCode = cc.toUpperCase();
   return hints;
@@ -148,6 +155,9 @@ export async function bootstrapProfile(
       });
       // A caller whose verified token already has the admin claim gets an admin profile (the claim is server-set).
       base.isAdmin = caller.claimIsAdmin === true;
+      // Defence in depth: re-validate here too, so only a clean +E.164 number is ever stored.
+      const whatsapp = hints.contactWhatsapp ? normalizePhone(hints.contactWhatsapp) : null;
+      if (whatsapp?.ok) base.contactWhatsapp = whatsapp.e164;
       base.needsRoleSelection = caller.claimIsAdmin !== true && !onboardingComplete;
       base.roleSelectionCompleted = caller.claimIsAdmin === true || onboardingComplete;
       Object.keys(base).forEach((k) => base[k] === undefined && delete base[k]);

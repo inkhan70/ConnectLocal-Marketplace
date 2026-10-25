@@ -10,6 +10,7 @@ export interface BootstrapProfileInput {
   longitude?: number;
   /** The sign-up form already collected role + business type, so no second role-selection step is needed. */
   roleSelected?: boolean;
+  contactWhatsapp?: string;
   role?: string;
   businessName?: string;
   fullName?: string;

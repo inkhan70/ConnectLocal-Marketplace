@@ -28,6 +28,7 @@ import { Loader2, Upload, Trash2, ImageIcon, Sparkles, Banknote, Truck, MapPin }
 import { Location } from "@/components/Location";
 import { useFirestore, storage } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import { ContactSettingsCard } from "@/components/ContactSettingsCard";
 import { ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import Image from "next/image";
 import { generateSlogan } from "@/ai/flows/generate-slogan-flow";
@@ -347,6 +348,7 @@ export default function SettingsPage() {
                     </Form>
                 </CardContent>
             </Card>
+            <ContactSettingsCard />
 
             {isBusiness && (
             <>

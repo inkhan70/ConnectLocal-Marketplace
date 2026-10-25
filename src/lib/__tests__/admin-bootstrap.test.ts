@@ -226,6 +226,14 @@ describe('first-admin bootstrap', () => {
       expect(g.needsRoleSelection).toBe(true);
     });
 
+    test('WhatsApp number typed at sign-up is validated and stored as +E.164; junk is dropped', async () => {
+      const { db, auth } = await seed();
+      await run(db, auth, verified('w'), { role: 'shopkeeper', roleSelected: true, businessName: 'Shop', subcategoryId: 'health_pharmacy', contactWhatsapp: '+92 300-1234567' });
+      expect(db.docs.get('users/w').contactWhatsapp).toBe('+923001234567');
+      await run(db, auth, verified('w2'), { role: 'buyer', contactWhatsapp: 'not a number' });
+      expect(db.docs.get('users/w2').contactWhatsapp).toBeUndefined();
+    });
+
     test('client cannot smuggle privileges through hints', async () => {
       const { db, auth } = await seed();
       const { sanitizeHints } = await import('@/lib/server/admin-bootstrap');

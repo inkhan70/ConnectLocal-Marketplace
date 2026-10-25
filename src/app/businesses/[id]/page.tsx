@@ -7,6 +7,7 @@ import { ArrowLeft, MapPin, Navigation, Stethoscope, Store, Heart, MessageSquare
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { usePublicBusiness } from "@/hooks/use-public-business";
+import { ContactSeller } from "@/components/ContactSeller";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import images from "@/app/lib/placeholder-images.json";
@@ -129,10 +130,12 @@ export default function BusinessProfilePage() {
                 <Heart className={cn("mr-2 h-4 w-4", favorite && "fill-red-500 text-red-500")} />
                 {favorite ? "Saved" : "Save"}
               </Button>
-              {user && user.uid !== profile.uid && (
-                <Button variant="outline" onClick={handleStartChat}>
-                  <MessageSquare className="mr-2 h-4 w-4" /> Contact
-                </Button>
+              {(!user || user.uid !== profile.uid) && (
+                <ContactSeller
+                  seller={profile}
+                  message={`Hello ${profile.businessName || ''}, I found your business on ConnectLocal and would like to know more.`}
+                  fallback={user ? { label: "Message", onClick: handleStartChat } : undefined}
+                />
               )}
             </div>
           </div>

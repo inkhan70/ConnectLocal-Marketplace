@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,6 +28,7 @@ import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { bootstrapUserProfile } from "@/lib/bootstrap-client";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { normalizePhone } from "@/lib/contact";
 import { getBuiltInCategories, getSubcategoriesForCategory, resolveCategoryKey } from "@/lib/subcategories";
 import type { SubcategoryOption } from "@/lib/subcategories";
 
@@ -46,11 +48,18 @@ const formSchema = z.object({
   subcategoryName: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  contactWhatsapp: z.string().optional(),
   fullName: z.string().optional(),
   address: z.string().min(10, { message: "Full address is required." }),
   city: z.string().min(2, { message: "City is required." }),
   state: z.string().min(2, { message: "State is required." }),
 }).superRefine((data, ctx) => {
+    if (data.role !== 'buyer' && data.contactWhatsapp?.trim()) {
+        const phone = normalizePhone(data.contactWhatsapp);
+        if (!phone.ok) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: phone.error || "Invalid WhatsApp number.", path: ["contactWhatsapp"] });
+        }
+    }
     if (data.role !== 'buyer' && data.role !== 'services' && (!data.businessName || data.businessName.length < 2)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -189,6 +198,7 @@ export function SignupForm() {
                     subcategoryName: values.subcategoryName,
                     latitude: values.latitude,
                     longitude: values.longitude,
+                    contactWhatsapp: values.contactWhatsapp?.trim() || undefined,
                     // The person already chose their role and business type on this form, so the server can send
                     // them straight to the matching dashboard instead of asking again after login.
                     roleSelected: true,
@@ -336,6 +346,20 @@ export function SignupForm() {
                         <FormControl>
                           <Input placeholder={selectedRole === 'services' ? 'e.g., John Medical Clinic' : t('signup.business_name_placeholder')} {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="contactWhatsapp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>WhatsApp number (optional)</FormLabel>
+                        <FormControl>
+                          <Input type="tel" inputMode="tel" autoComplete="tel" placeholder="+92 300 1234567" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>Customers will tap WhatsApp / Call to reach this number. Include the country code. You can change it later in Settings.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

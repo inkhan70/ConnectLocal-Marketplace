@@ -2,24 +2,32 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Package, ClipboardCopy, CheckCircle2, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { processPayment } from '@/lib/payment-utils';
+import { ContactSeller } from '@/components/ContactSeller';
+import { usePublicBusiness } from '@/hooks/use-public-business';
 
 interface Order {
-  id: string; buyerId: string; businessId: string; buyerName: string; items: any[]; totalCost: number; orderDate: Timestamp;
+  id: string; buyerId: string; businessId: string; buyerName: string; buyerPhone?: string; items: any[]; totalCost: number; orderDate: Timestamp;
   status: string; pickupCode?: string; paymentMethod?: 'cod' | 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal'; deliveryMethod?: 'seller_delivery' | 'pickup'; paymentStatus?: string; deliveryAddress?: any;
 }
 
 const label = (status: string) => status.replaceAll('_', ' ');
+
+/** Buyer -> seller: WhatsApp / call the seller about this order (seller's published number). */
+function ContactSellerForOrder({ order }: { order: Order }) {
+  const { data: seller } = usePublicBusiness(order.businessId);
+  return <ContactSeller size="sm" hideWhenEmpty seller={seller} message={`Hello ${seller?.businessName || ''}, I have a question about my ConnectLocal order ${order.id.slice(0, 8)}.`} />;
+}
 
 export default function OrdersPage() {
   const { user, userProfile } = useAuth();
@@ -34,9 +42,12 @@ export default function OrdersPage() {
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
     const fieldPath = isBusiness ? 'businessId' : 'buyerId';
-    return query(collection(firestore, 'orders'), where(fieldPath, '==', user.uid), orderBy('orderDate', 'desc'));
+    // Single-field filter only: a filter + orderBy would need a composite index that must be created by hand in
+    // Firebase, and a missing index makes the whole page crash. Newest-first sorting is done below instead.
+    return query(collection(firestore, 'orders'), where(fieldPath, '==', user.uid));
   }, [user, firestore, isBusiness]);
-  const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
+  const { data: rawOrders, isLoading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery);
+  const orders = useMemo(() => rawOrders ? [...rawOrders].sort((a, b) => (b.orderDate?.toMillis?.() ?? Number.MAX_SAFE_INTEGER) - (a.orderDate?.toMillis?.() ?? Number.MAX_SAFE_INTEGER)) : rawOrders, [rawOrders]);
 
   async function action(order: Order, actionName: string, extra: Record<string, unknown> = {}) {
     if (!user) return;
@@ -105,13 +116,17 @@ export default function OrdersPage() {
 
   return <div>
     <div className="mb-6"><h1 className="text-2xl font-bold font-headline">{isBusiness ? 'Incoming Orders' : 'My Purchase History'}</h1><p className="text-muted-foreground">{isBusiness ? 'Fulfill orders, verify pickup and manage customer requests.' : 'Track payment, delivery and pickup securely.'}</p></div>
+    {ordersError && <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">We could not load your orders right now. Please refresh the page; if it keeps happening, contact support.</div>}
     <Card><CardHeader><CardTitle>All Orders</CardTitle><CardDescription>Order actions are validated by the server.</CardDescription></CardHeader><CardContent>
       <Table><TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>{isBusiness ? 'Customer' : 'Seller'}</TableHead><TableHead>Date</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Handover</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
       <TableBody>{ordersLoading ? <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin" /></TableCell></TableRow> : orders?.length ? orders.map(order => <TableRow key={order.id}>
         <TableCell className="font-medium" title={order.id}>{order.id.substring(0, 8)}...</TableCell><TableCell>{isBusiness ? order.buyerName : 'Business'}</TableCell><TableCell>{order.orderDate?.toDate ? order.orderDate.toDate().toLocaleDateString() : '—'}</TableCell><TableCell>${Number(order.totalCost || 0).toFixed(2)}</TableCell>
         <TableCell><Badge variant={['completed','paid'].includes(order.status) ? 'default' : 'secondary'}>{label(order.status)}</Badge></TableCell>
         <TableCell className="text-xs text-muted-foreground">{['paid','processing','ready_for_pickup','out_for_delivery'].includes(order.status) ? (isBusiness ? (['ready_for_pickup','out_for_delivery'].includes(order.status) ? 'Awaiting buyer code' : '—') : <Button size="sm" variant="outline" onClick={() => showCode(order)}><ShieldCheck className="mr-1 h-4 w-4" />Show code</Button>) : '—'}</TableCell>
-        <TableCell className="text-right"><div className="flex justify-end gap-2">
+        <TableCell className="text-right"><div className="flex flex-wrap justify-end gap-2">
+          {isBusiness
+            ? <ContactSeller size="sm" hideWhenEmpty seller={{ contactWhatsapp: order.buyerPhone, countryCode: userProfile?.countryCode, businessName: order.buyerName }} message={`Hello ${order.buyerName || ''}, this is ${userProfile?.businessName || 'your seller'} about your ConnectLocal order ${order.id.slice(0, 8)}.`} />
+            : <ContactSellerForOrder order={order} />}
           {isBusiness && order.status === 'paid' && <Button size="sm" variant="outline" onClick={() => action(order, 'transition', { status: 'processing' })}>Process</Button>}
           {isBusiness && order.status === 'processing' && <Button size="sm" variant="outline" onClick={() => action(order, 'transition', { status: order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery' })}>{order.deliveryMethod === 'pickup' ? <CheckCircle2 className="mr-1 h-4 w-4" /> : <Truck className="mr-1 h-4 w-4" />}Next</Button>}
           {isBusiness && order.status === 'ready_for_pickup' && <Button size="sm" onClick={() => { setVerifyCode(''); setVerifyFor({ order, kind: 'pickup' }); }}><ShieldCheck className="mr-1 h-4 w-4" />Verify pickup</Button>}

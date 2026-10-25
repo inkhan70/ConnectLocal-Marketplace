@@ -22,6 +22,9 @@ export interface UserProfile {
     city: string;
     state: string;
     countryCode?: string; // ISO country code for location filtering
+    /** Public business contact numbers the member chose to show customers (stored as +E.164). */
+    contactWhatsapp?: string;
+    contactPhone?: string;
     latitude?: number; // Business location latitude for proximity search
     longitude?: number; // Business location longitude for proximity search
     createdAt: string; // Keep as string to match what's in Firestore

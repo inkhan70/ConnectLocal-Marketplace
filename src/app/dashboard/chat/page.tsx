@@ -48,10 +48,12 @@ function ChatPage() {
 
     // --- Data Fetching ---
     const chatsQuery = useMemoFirebase(() => 
-        user ? query(collection(firestore, 'chats'), where('participants', 'array-contains', user.uid), orderBy('lastMessageTimestamp', 'desc')) : null,
+        // No orderBy here: filter + sort would require a composite index. Conversations are sorted below.
+        user ? query(collection(firestore, 'chats'), where('participants', 'array-contains', user.uid)) : null,
         [user, firestore]
     );
-    const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+    const { data: rawChats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+    const chats = useMemo(() => rawChats ? [...rawChats].sort((a, b) => (b.lastMessageTimestamp?.toMillis?.() ?? Number.MAX_SAFE_INTEGER) - (a.lastMessageTimestamp?.toMillis?.() ?? Number.MAX_SAFE_INTEGER)) : rawChats, [rawChats]);
 
     const messagesQuery = useMemoFirebase(() => 
         activeChat ? query(collection(firestore, 'chats', activeChat.id, 'messages'), orderBy('timestamp', 'asc')) : null,
@@ -110,7 +112,7 @@ function ChatPage() {
     const getOtherParticipant = (chat: Chat) => {
         if (!user) return null;
         const otherId = chat.participants.find(p => p !== user.uid);
-        return otherId ? chat.participantProfiles[otherId] : null;
+        return otherId ? chat.participantProfiles?.[otherId] ?? null : null;
     }
 
     return (

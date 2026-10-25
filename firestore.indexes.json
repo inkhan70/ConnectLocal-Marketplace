@@ -1,0 +1,20 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "buyerId", "order": "ASCENDING" }, { "fieldPath": "orderDate", "order": "DESCENDING" }]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "businessId", "order": "ASCENDING" }, { "fieldPath": "orderDate", "order": "DESCENDING" }]
+    },
+    {
+      "collectionGroup": "chats",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "participants", "arrayConfig": "CONTAINS" }, { "fieldPath": "lastMessageTimestamp", "order": "DESCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}

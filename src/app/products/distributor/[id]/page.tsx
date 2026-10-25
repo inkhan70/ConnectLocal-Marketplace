@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { usePublicBusiness } from "@/hooks/use-public-business";
+import { ContactSeller } from "@/components/ContactSeller";
 import { doc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { ProductSearch } from "@/components/ProductSearch";
 import { useAuth, UserProfile } from "@/contexts/AuthContext";
@@ -171,10 +172,12 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
                         <Heart className={cn("mr-2 h-5 w-5", favorite ? "fill-red-500 text-red-500" : "")} /> 
                         {favorite ? "Favorited" : "Favorite"}
                     </Button>
-                    {user && user.uid !== business.uid && (
-                        <Button variant="outline" onClick={handleStartChat}>
-                            <MessageSquare className="mr-2 h-5 w-5" /> Chat
-                        </Button>
+                    {(!user || user.uid !== business.uid) && (
+                        <ContactSeller
+                            seller={business}
+                            message={`Hello ${business?.businessName || ''}, I found your products on ConnectLocal and would like to know more.`}
+                            fallback={user ? { label: "Chat", onClick: handleStartChat } : undefined}
+                        />
                     )}
                </div>
           </div>

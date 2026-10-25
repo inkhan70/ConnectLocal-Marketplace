@@ -105,7 +105,13 @@ export function useCollection<T = any>(
         setIsLoading(false)
 
         // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // Only developers should see the full-screen overlay. In production a failed query (missing index, rules,
+        // offline) must degrade to an empty/error state on that screen instead of crashing the whole app.
+        if (process.env.NODE_ENV !== 'production') {
+          errorEmitter.emit('permission-error', contextualError);
+        } else {
+          console.error('Firestore query failed:', (error as any)?.code, (error as any)?.message);
+        }
       }
     );
 

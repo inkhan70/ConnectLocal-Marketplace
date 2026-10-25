@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ClipboardCopy, ShieldCheck, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { processPayment } from "@/lib/payment-utils";
+import { ContactSeller } from "@/components/ContactSeller";
 
 interface TrackedOrder {
   id: string; status: string; paymentStatus?: string; paymentMethod?: "cod" | "stripe" | "paypal";
@@ -25,6 +26,7 @@ export default function TrackOrderPage() {
   const [key, setKey] = useState("");
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  const [sellerContact, setSellerContact] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -37,7 +39,7 @@ export default function TrackOrderPage() {
       const r = await fetch(`/api/orders/track?orderId=${encodeURIComponent(id)}`, { headers: { "x-guest-key": k }, cache: "no-store" });
       const body = await r.json();
       if (!r.ok) throw new Error(body?.error || "Could not load the order.");
-      setOrder(body.order); setCode(body.verificationCode); setError(null);
+      setOrder(body.order); setCode(body.verificationCode); setSellerContact(body.sellerContact || null); setError(null);
     } catch (e: any) { setError(e.message); } finally { if (!quiet) setLoading(false); }
   }, []);
 
@@ -112,6 +114,7 @@ export default function TrackOrderPage() {
       <div className="flex justify-between font-semibold"><span>Total</span><span>{money(order.totalCost)}</span></div>
       <p className="pt-2 text-muted-foreground">{order.deliveryMethod === "pickup" ? "Customer pickup" : `Delivery to ${[order.deliveryAddress?.address, order.deliveryAddress?.city, order.deliveryAddress?.state].filter(Boolean).join(", ")}`} · Payment: {order.paymentMethod === "cod" ? "Cash on delivery" : order.paymentMethod} ({order.paymentStatus === "paid" ? "paid" : label(order.paymentStatus || "pending")})</p>
     </CardContent></Card>
+    <Card><CardHeader><CardTitle>Need help with your order?</CardTitle><CardDescription>Contact {order.sellerName} directly. Never share your verification code in a message.</CardDescription></CardHeader><CardContent><ContactSeller seller={sellerContact} message={`Hello ${order.sellerName}, I have a question about my ConnectLocal order ${order.id.slice(0, 8)}.`} /></CardContent></Card>
     <p className="text-xs text-muted-foreground">Keep this page's link private: it is your proof of ownership for this order. <Link className="underline" href="/signup">Create an account</Link> to keep all your orders in one place.</p>
   </div>;
 }

@@ -17,6 +17,7 @@ import images from '@/app/lib/placeholder-images.json';
 import { useAuth, UserProfile } from '@/contexts/AuthContext';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { usePublicBusiness } from '@/hooks/use-public-business';
+import { ContactSeller } from '@/components/ContactSeller';
 import { collection, query, where, addDoc, serverTimestamp, doc, getDocs } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
 import { useRouter } from 'next/navigation';
@@ -303,12 +304,17 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
                     <Button type="button" className="w-full" size="lg" onClick={handleAddToCart}>
                         <ShoppingCart className="mr-2 h-5 w-5" /> {t('item_detail.add_to_cart')}
                     </Button>
-                    <Button type="button" variant="outline" size="lg" onClick={handleStartChat}>
-                        <MessageSquare className="mr-2 h-5 w-5" /> Chat
-                    </Button>
                     <Button type="button" variant="outline" size="icon" onClick={handleShare}>
                         <Share2 className="h-5 w-5" />
                     </Button>
+                  </div>
+                  <div className="mt-3">
+                    <p className="mb-2 text-sm text-muted-foreground">Questions about this item? Contact the seller directly:</p>
+                    <ContactSeller
+                      seller={sellerProfile}
+                      message={`Hello, I am interested in "${product.name}" on ConnectLocal${typeof window !== 'undefined' ? ` (${window.location.href})` : ''}. Is it available?`}
+                      fallback={user ? { label: "Chat with seller", onClick: handleStartChat } : undefined}
+                    />
                   </div>
                 </form>
                 </CardContent>

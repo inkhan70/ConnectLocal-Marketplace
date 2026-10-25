@@ -1,3 +1,5 @@
+import { normalizePhone } from '@/lib/contact';
+
 /**
  * Public projection of a member profile.
  *
@@ -15,6 +17,8 @@ export const PUBLIC_PROFILE_FIELDS = [
   'ghostCoinRewardPerSale', 'ghostCoinMinimumQuantity', 'ghostCoinOfferEnabled', 'ghostCoinsPerSale', 'ghostCoinMinQuantity',
   // Fulfilment options the buyer needs to know about
   'pickupEnabled', 'deliveryEnabled',
+  // Contact numbers the member deliberately published for customers (validated/normalised below).
+  'contactWhatsapp', 'contactPhone', 
 ] as const;
 
 export type PublicProfile = Partial<Record<(typeof PUBLIC_PROFILE_FIELDS)[number], any>> & { uid: string };
@@ -32,7 +36,14 @@ export function toPublicBusiness(id: string, data: Record<string, any> | undefin
   const out: Record<string, any> = { uid: id };
   for (const field of PUBLIC_PROFILE_FIELDS) {
     if (field === 'uid') continue;
-    if (data[field] !== undefined) out[field] = field === 'createdAt' ? toIso(data[field]) : data[field];
+    if (data[field] === undefined) continue;
+    if (field === 'contactWhatsapp' || field === 'contactPhone') {
+      // Only valid numbers are published; junk never becomes a broken link.
+      const phone = normalizePhone(data[field], data.countryCode);
+      if (phone.ok) out[field] = phone.e164;
+      continue;
+    }
+    out[field] = field === 'createdAt' ? toIso(data[field]) : data[field];
   }
   return out as PublicProfile;
 }

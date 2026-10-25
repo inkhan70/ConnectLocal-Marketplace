@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { classifyError, getAdminDb } from '@/lib/server/firebase-admin';
 import { readVerificationCode, requireOrderBuyer } from '@/lib/server/order-secrets';
+import { toPublicBusiness } from '@/lib/server/public-profile';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,10 +24,13 @@ export async function GET(request: NextRequest) {
     const o = access.order;
 
     let sellerName = 'Seller';
+    let sellerContact: Record<string, any> | null = null;
     try {
       const seller = await db.collection('users').doc(String(o.businessId)).get();
       sellerName = String(seller.data()?.businessName || seller.data()?.fullName || 'Seller');
-    } catch { /* name is cosmetic */ }
+      const pub = toPublicBusiness(seller.id, seller.data());
+      if (pub) sellerContact = { businessName: pub.businessName, contactWhatsapp: pub.contactWhatsapp, contactPhone: pub.contactPhone };
+    } catch { /* name/contact are cosmetic */ }
 
     const showCode = HANDOVER_STATUSES.includes(String(o.status)) && o.verificationRequired !== false;
     return NextResponse.json({
@@ -46,6 +50,7 @@ export async function GET(request: NextRequest) {
         sellerName,
         isGuestOrder: !!o.isGuestOrder,
       },
+      sellerContact,
       verificationCode: showCode ? await readVerificationCode(db, access.id, o) : null,
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error: any) {
