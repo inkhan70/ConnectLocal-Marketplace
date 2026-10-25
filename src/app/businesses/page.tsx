@@ -15,6 +15,7 @@ import { usePublicBusinesses } from "@/hooks/use-public-business";
 import { UserProfile } from "@/contexts/AuthContext";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
 import { cn } from "@/lib/utils";
+import { resolveCategoryKey } from '@/lib/subcategories';
 import { 
   calculateDistance, 
   isValidCoordinate,
@@ -48,18 +49,8 @@ function BusinessesContent() {
   const roleParam = searchParams.get('role') || 'shopkeeper';
   const subcategoryParam = searchParams.get('subcategory') || ''; 
   
-  // Map user-facing role slugs from the URL to the role names stored in Firestore.
-  const roleMapping: { [key: string]: string } = {
-    producers: 'company',
-    wholesalers: 'wholesaler',
-    distributors: 'distributor',
-    shopkeepers: 'shopkeeper',
-    company: 'company', // Handle direct case as well
-    services: 'services',
-  };
-  const role = roleMapping[roleParam] || 'shopkeeper';
   // Firestore stores category keys (for example `automotive`), while the UI uses title case.
-  const category = categoryParam === 'all' ? 'all' : categoryParam.trim().toLowerCase();
+  const category = categoryParam === 'all' ? 'all' : (resolveCategoryKey(categoryParam) || categoryParam.trim().toLowerCase());
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
@@ -69,7 +60,12 @@ function BusinessesContent() {
   const [locationAttempt, setLocationAttempt] = useState(0);
 
   // Public, allow-listed directory from the server (no private profile fields ever reach the browser).
-  const { data: fetchedBusinesses, isLoading: loading, error } = usePublicBusinesses([role]);
+  // Load the complete public directory before applying category filters. Older accounts can
+  // have a valid Food profile with a legacy role/subcategory value, so filtering by the
+  // URL's inferred role at the API boundary can hide an otherwise public business.
+  const { data: fetchedBusinesses, isLoading: loading, error } = usePublicBusinesses([
+    'company', 'wholesaler', 'distributor', 'shopkeeper', 'services',
+  ]);
 
   // Get user location on mount
   useEffect(() => {
@@ -111,10 +107,19 @@ function BusinessesContent() {
 
     const processedBusinesses: Business[] = fetchedBusinesses
       .filter((biz) => {
-        const storedCategory = String(biz.category || '').trim().toLowerCase();
+        const storedCategory = resolveCategoryKey(String(biz.category || '')) || String(biz.category || '').trim().toLowerCase();
         const storedSubcategory = String(biz.subcategoryId || '').trim().toLowerCase();
+        const storedSubcategoryName = String(biz.subcategoryName || '').trim().toLowerCase();
         if (category !== 'all' && storedCategory !== category && !storedSubcategory.includes(category)) return false;
-        if (subcategoryParam && storedSubcategory !== subcategoryParam.toLowerCase()) return false;
+        if (subcategoryParam) {
+          const requestedSubcategory = subcategoryParam.trim().toLowerCase();
+          const matchesSubcategory = storedSubcategory === requestedSubcategory ||
+            storedSubcategoryName === requestedSubcategory ||
+            storedSubcategoryName.includes(requestedSubcategory) ||
+            // Preserve discoverability for accounts created before stable subcategory IDs.
+            (requestedSubcategory === 'food_restaurant' && /cafe|restaurant/.test(`${storedSubcategory} ${storedSubcategoryName}`));
+          if (!matchesSubcategory) return false;
+        }
         return true;
       })
       .map((biz) => ({
@@ -159,7 +164,7 @@ function BusinessesContent() {
 
 
   const roleTitle = t(`roles.${roleParam}`); // Use original plural param for display
-  const categoryTitle = category === 'all' ? 'All Businesses' : capitalize(category);
+  const categoryTitle = category === 'all' ? 'All Businesses' : capitalize(category.replace(/-/g, ' '));
   const isLocationEnabled = !!userLocation;
   const hasNearbyResults = isLocationEnabled && displayedBusinesses.some((biz) => biz.distance !== undefined);
 

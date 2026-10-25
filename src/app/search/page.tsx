@@ -79,7 +79,7 @@ function SearchResultsContent() {
     }).map((data) => ({ type: "product" as const, data }));
 
     const businessResults = (businesses || []).filter((business) => {
-      const searchable = [business.businessName, business.fullName, business.category, business.subcategoryId, business.city, business.state]
+      const searchable = [business.businessName, business.fullName, business.category, business.subcategoryId, business.subcategoryName, business.city, business.state]
         .filter(Boolean).join(" ").toLocaleLowerCase();
       return (!normalizedTerm || searchable.includes(normalizedTerm)) &&
         (!city || String(business.city || "").toLocaleLowerCase() === city.toLocaleLowerCase());
