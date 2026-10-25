@@ -67,6 +67,9 @@ async function createStripePayment(ref: DocumentReference, order: any, orderId: 
   params.set('line_items[0][price_data][unit_amount]', String(Math.round(total * 100)));
   params.set('line_items[0][quantity]', '1');
   params.set('metadata[orderId]', String(orderId));
+  // Copy the order id onto the PaymentIntent too. Some Stripe configurations
+  // deliver payment_intent.succeeded without checkout.session.completed.
+  params.set('payment_intent_data[metadata][orderId]', String(orderId));
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': `checkout_${String(orderId)}` }, body: params });
   const data = await response.json();
   if (!response.ok) return jsonError((data?.error?.message || 'Stripe could not create the payment.'), 502);

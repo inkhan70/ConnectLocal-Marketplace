@@ -53,7 +53,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const addToCart = (newItem: CartItem) => {
         setCart(prevCart => {
-            const existingItemIndex = prevCart.findIndex(item => item.varietyId === newItem.varietyId);
+            const existingItemIndex = prevCart.findIndex(item => item.productId === newItem.productId && item.varietyId === newItem.varietyId);
             
             if (existingItemIndex > -1) {
                 // Item already in cart, update quantity
@@ -106,5 +106,3 @@ export const useCart = () => {
     }
     return context;
 };
-
-    
