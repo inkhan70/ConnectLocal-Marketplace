@@ -127,12 +127,12 @@ export async function POST(request: NextRequest) {
     const orderId = object.metadata?.orderId;
     if (!orderId) return NextResponse.json({ received: true });
 
-    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded' || event.type === 'payment_intent.succeeded') {
       // 'completed' can fire before delayed payment methods have actually settled.
-      if (object.payment_status && object.payment_status !== 'paid') return NextResponse.json({ received: true });
+      if (event.type !== 'payment_intent.succeeded' && object.payment_status && object.payment_status !== 'paid') return NextResponse.json({ received: true });
       const result = await applyPaymentEvent(db, String(orderId), 'paid',
-        { provider: 'stripe', sessionId: object.id, transactionId: object.payment_intent || null },
-        { amountMinor: typeof object.amount_total === 'number' ? object.amount_total : null, currency: object.currency || null });
+        { provider: 'stripe', sessionId: event.type === 'payment_intent.succeeded' ? null : object.id, transactionId: event.type === 'payment_intent.succeeded' ? object.id : (object.payment_intent || null) },
+        { amountMinor: typeof object.amount_total === 'number' ? object.amount_total : (typeof object.amount_received === 'number' ? object.amount_received : null), currency: object.currency || null });
       if (!result.found) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
       if (result.mismatch) console.error(`Stripe payment for order ${orderId} did not match the order total/currency; order left unpaid and flagged.`);
       if (result.changed) await notifyOrderParties({ ...result.order, id: orderId }, { title: 'Payment received', body: `Payment for order ${orderId} was confirmed.`, type: 'payment_received' });
