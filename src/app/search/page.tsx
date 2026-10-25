@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { collection, limit, query } from "firebase/firestore";
 import { Loader2, MapPin, Package, Store } from "lucide-react";
@@ -112,7 +113,8 @@ function SearchResultsContent() {
       {results.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No results found. Try a different search.</CardContent></Card> :
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{results.map((result, index) => {
           if (result.type === "product") return <Card key={`product-${result.data.id || index}`}><CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" />{result.data.name || "Unnamed product"}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{result.data.description || "Product available from a local business."}</p></CardContent></Card>;
-          return <Card key={`business-${result.data.uid || index}`}><CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" />{result.data.businessName || result.data.fullName || "Business"}</CardTitle></CardHeader><CardContent className="space-y-2"><Badge variant="secondary">{result.data.role}</Badge><p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{[result.data.city, result.data.state].filter(Boolean).join(", ") || "Location unavailable"}</p>{result.data.distance !== undefined && <p className="text-sm text-muted-foreground">{result.data.distance.toFixed(1)} km away</p>}</CardContent></Card>;
+          const label = result.data.subcategoryName || result.data.category || result.data.role || "Business";
+          return <Link key={`business-${result.data.uid || index}`} href={`/businesses/${encodeURIComponent(result.data.uid)}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><Card className="h-full transition-colors hover:border-primary"><CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" />{result.data.businessName || result.data.fullName || "Business"}</CardTitle></CardHeader><CardContent className="space-y-2"><Badge variant="secondary">{label}</Badge><p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{[result.data.city, result.data.state].filter(Boolean).join(", ") || "Location unavailable"}</p>{result.data.distance !== undefined && <p className="text-sm text-muted-foreground">{result.data.distance.toFixed(1)} km away</p>}</CardContent></Card></Link>;
         })}</div>}
     </main>
   );
