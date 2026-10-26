@@ -86,7 +86,14 @@ export default function OrdersPage() {
         const r = await fetch('/api/payments/paypal/capture', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ orderId, paypalOrderId: token }) });
         const b = await r.json().catch(() => ({}));
         toast(r.ok ? { title: 'Payment received', description: 'Thank you! Your order is confirmed.' } : { title: 'Payment not completed', description: b?.error || 'Please try again.', variant: 'destructive' });
-      } else if (payment === 'success') toast({ title: 'Payment submitted', description: 'We are confirming it with the payment provider.' });
+      } else if (payment === 'success') {
+        const idToken = await (user as any).getIdToken();
+        const confirmation = await fetch('/api/payments/stripe/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ orderId }) });
+        const confirmationBody = await confirmation.json().catch(() => ({}));
+        toast(confirmation.ok && confirmationBody.status === 'paid'
+          ? { title: 'Payment received', description: 'Your order is now confirmed.' }
+          : { title: 'Payment still processing', description: 'Stripe has not confirmed this payment yet. Refresh shortly.', variant: 'destructive' });
+      }
       else if (payment === 'cancelled') toast({ title: 'Payment cancelled', description: 'Your order is reserved. Press Pay to try again.', variant: 'destructive' });
       window.history.replaceState({}, '', '/dashboard/orders');
     })();
