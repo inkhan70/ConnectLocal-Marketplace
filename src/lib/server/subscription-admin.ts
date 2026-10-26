@@ -1,13 +1,23 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/server/firebase-admin';
-import { planToEntitlements, SubscriptionPlanRecord, SubscriptionStatus } from '@/lib/subscription-domain';
+import { DEFAULT_SUBSCRIPTION_PLANS, planToEntitlements, SubscriptionPlanRecord, SubscriptionStatus } from '@/lib/subscription-domain';
 
 export async function getSubscriptionPlan(planId: string): Promise<SubscriptionPlanRecord | null> {
   const db = getAdminDb();
   const snap = await db.collection('subscriptionPlans').doc(planId).get();
   if (!snap.exists) return null;
   const data = snap.data() || {};
-  const plan = { id: snap.id, ...data } as SubscriptionPlanRecord;
+  const defaults = DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === snap.id);
+  const plan = {
+    ...(defaults || {}),
+    ...data,
+    id: snap.id,
+    membershipTier: data.membershipTier || defaults?.membershipTier || 'community',
+    storageLimitBytes: data.storageLimitBytes ?? defaults?.storageLimitBytes ?? 80 * 1024 * 1024,
+    maxImages: data.maxImages ?? defaults?.maxImages ?? 15,
+    maxListings: data.maxListings ?? defaults?.maxListings ?? 10,
+    features: Array.isArray(data.features) ? data.features : defaults?.features || [],
+  } as SubscriptionPlanRecord;
   if (plan.active === false) return null;
   return plan;
 }

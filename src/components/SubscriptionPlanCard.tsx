@@ -59,7 +59,7 @@ export default function SubscriptionPlanCard({ plan, isActive = false, onSelect,
           </ul>
         </div>
       </CardContent>
-      {onSelect && <div className="border-t p-4"><Button onClick={() => onSelect(plan.id)} disabled={isActive} className="w-full">{isActive ? "Current Plan" : plan.price === 0 ? "Use Free Plan" : "Choose Plan"}</Button></div>}
+      {onSelect && <div className="border-t p-4"><Button onClick={() => onSelect(plan.id)} disabled={isActive} className="w-full">{isActive ? "Current Plan" : plan.price === 0 ? "Use Free Plan" : `Choose ${plan.name}`}</Button></div>}
     </Card>
   );
 }

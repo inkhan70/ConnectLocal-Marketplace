@@ -6,6 +6,10 @@ export interface SubscriptionEntitlements {
   storageLimitBytes: number;
   maxImages: number | null;
   maxListings: number | null;
+  /** Legacy display value retained for older plan documents. */
+  storageLimit?: number;
+  /** Legacy display value retained for older plan documents. */
+  listings?: number | null;
   features: string[];
 }
 
