@@ -95,11 +95,15 @@ export default function SubscriptionPage() {
     }
   };
 
+  // Only platform-owned membership plans belong in customer billing. Custom
+  // category/subcategory records must not be rendered as subscription plans.
   const sortedPlans = (Array.isArray(plans) && plans.length > 0
-    ? plans.map((plan) => {
-        const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === plan.id);
-        return { ...fallback, ...plan, features: Array.isArray(plan.features) ? plan.features : fallback?.features || [] };
-      })
+    ? plans
+        .filter((plan) => DEFAULT_SUBSCRIPTION_PLANS.some((candidate) => candidate.id === plan.id))
+        .map((plan) => {
+          const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === plan.id);
+          return { ...fallback, ...plan, features: Array.isArray(plan.features) ? plan.features : fallback?.features || [] };
+        })
     : DEFAULT_SUBSCRIPTION_PLANS
   ).sort((a, b) => (a.price || 0) - (b.price || 0));
   const effectiveStatus = getSubscriptionStatus(userProfile?.subscriptionStartDate, userProfile?.subscriptionEndDate);
@@ -120,7 +124,7 @@ export default function SubscriptionPage() {
         {selectedPlan && <Alert className="mb-6"><CreditCard className="h-4 w-4" /><AlertDescription>Selected plan: <strong>{selectedPlan.name}</strong>. Continue below to start billing securely.</AlertDescription></Alert>}
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-600" />Current Plan</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Plan</p><p className="text-2xl font-bold">{currentPlan?.name || 'Community'}</p><div className="mt-2"><Badge className={isActive ? 'bg-green-600' : 'bg-gray-500'}>{isActive ? 'Active' : 'Community / Inactive'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">Access source: {userProfile?.subscriptionSource === 'stripe' ? 'Payment subscription' : userProfile?.subscriptionSource === 'admin' ? 'Administrator grant' : 'Community/system'}</p></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-600" />Current Plan</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Plan</p><p className="text-2xl font-bold">{DEFAULT_SUBSCRIPTION_PLANS.find((plan) => plan.id === userProfile?.subscriptionPlanId)?.name || 'Community'}</p><div className="mt-2"><Badge className={isActive ? 'bg-green-600' : 'bg-gray-500'}>{isActive ? 'Active' : 'Community / Inactive'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">Access source: {userProfile?.subscriptionSource === 'stripe' ? 'Payment subscription' : userProfile?.subscriptionSource === 'admin' ? 'Administrator grant' : 'Community/system'}</p></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" />Billing</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">End date</p><p className="font-semibold">{userProfile?.subscriptionEndDate ? new Date(userProfile.subscriptionEndDate).toLocaleDateString() : 'Not set'}</p>{userProfile?.cancelAtPeriodEnd && <p className="text-xs text-amber-600 mt-2">Cancellation scheduled at period end.</p>}</CardContent></Card>
           <Card><CardHeader><CardTitle className="text-lg">Business Value</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Current features</p><ul className="mt-2 space-y-1 text-sm">{(userProfile?.subscriptionFeatures || ['Basic business profile', 'Standard marketplace visibility']).slice(0, 4).map((feature) => <li key={feature}>• {feature}</li>)}</ul></CardContent></Card>
         </div>
