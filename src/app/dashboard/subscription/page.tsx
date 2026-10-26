@@ -16,7 +16,7 @@ import { collection, query, doc } from "firebase/firestore";
 import { Loader2, ArrowLeft, Calendar, AlertCircle, CheckCircle, CreditCard } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { getSubscriptionStatus } from "@/lib/subscription-domain";
+import { DEFAULT_SUBSCRIPTION_PLANS, getSubscriptionStatus } from "@/lib/subscription-domain";
 
 type Plan = {
   id?: string;
@@ -95,7 +95,13 @@ export default function SubscriptionPage() {
     }
   };
 
-  const sortedPlans = Array.isArray(plans) ? [...plans].sort((a, b) => (a.price || 0) - (b.price || 0)) : [];
+  const sortedPlans = (Array.isArray(plans) && plans.length > 0
+    ? plans.map((plan) => {
+        const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === plan.id);
+        return { ...fallback, ...plan, features: Array.isArray(plan.features) ? plan.features : fallback?.features || [] };
+      })
+    : DEFAULT_SUBSCRIPTION_PLANS
+  ).sort((a, b) => (a.price || 0) - (b.price || 0));
   const effectiveStatus = getSubscriptionStatus(userProfile?.subscriptionStartDate, userProfile?.subscriptionEndDate);
   const isActive = effectiveStatus === 'active';
   const selectedPlan = sortedPlans.find((plan) => plan.id === selectedPlanId);
