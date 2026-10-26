@@ -59,7 +59,11 @@ export default function TrackOrderPage() {
         const b = await r.json().catch(() => ({}));
         toast(r.ok ? { title: "Payment received", description: "Thank you! Your order is confirmed." } : { title: "Payment not completed", description: b?.error || "Please try again.", variant: "destructive" });
       } else if (p.get("payment") === "success") {
-        toast({ title: "Payment submitted", description: "We are confirming it with the payment provider." });
+        const confirmation = await fetch("/api/payments/stripe/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: id, guestKey: k }) });
+        const confirmationBody = await confirmation.json().catch(() => ({}));
+        toast(confirmation.ok && confirmationBody.status === "paid"
+          ? { title: "Payment received", description: "Your order is now confirmed." }
+          : { title: "Payment still processing", description: "Stripe has not confirmed this payment yet. Refresh shortly.", variant: "destructive" });
       } else if (p.get("payment") === "cancelled") {
         toast({ title: "Payment cancelled", description: "Your order is reserved. You can pay again below.", variant: "destructive" });
       }
