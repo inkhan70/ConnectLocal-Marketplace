@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, MessageSquare, Users } from 'lucide-react';
+import { Loader2, Send, MessageSquare, Users, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
@@ -44,7 +44,19 @@ function ChatPage() {
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [isClearing, setIsClearing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const clearChatHistory = async () => {
+        if (!user || !window.confirm('Clear all your conversations and messages? This cannot be undone.')) return;
+        setIsClearing(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/member/history?type=chats', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            if (!response.ok) throw new Error('Could not clear chat history.');
+            setActiveChat(null);
+        } catch (error) { console.error(error); } finally { setIsClearing(false); }
+    };
 
     // --- Data Fetching ---
     const chatsQuery = useMemoFirebase(() => 
@@ -119,8 +131,9 @@ function ChatPage() {
         <div className="h-[calc(100vh-10rem)] grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {/* Conversations List */}
             <Card className="md:col-span-1 lg:col-span-1 h-full flex flex-col">
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between space-y-0">
                     <h2 className="text-xl font-bold">Conversations</h2>
+                    <Button variant="ghost" size="sm" onClick={clearChatHistory} disabled={isClearing || !chats?.length} aria-label="Clear chat history"><Trash2 className="mr-1 h-4 w-4" />Clear</Button>
                 </CardHeader>
                 <CardContent className="p-0 flex-1">
                     <ScrollArea className="h-full">
