@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Package, ClipboardCopy, CheckCircle2, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Loader2, Package, ClipboardCopy, CheckCircle2, Truck, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ export default function OrdersPage() {
   const [verifyFor, setVerifyFor] = useState<{ order: Order; kind: 'pickup' | 'delivery' } | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
     const fieldPath = isBusiness ? 'businessId' : 'buyerId';
@@ -48,6 +49,18 @@ export default function OrdersPage() {
   }, [user, firestore, isBusiness]);
   const { data: rawOrders, isLoading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery);
   const orders = useMemo(() => rawOrders ? [...rawOrders].sort((a, b) => (b.orderDate?.toMillis?.() ?? Number.MAX_SAFE_INTEGER) - (a.orderDate?.toMillis?.() ?? Number.MAX_SAFE_INTEGER)) : rawOrders, [rawOrders]);
+
+  async function clearOrderHistory() {
+    if (!user || !window.confirm('Clear all order history? This cannot be undone.')) return;
+    setIsClearing(true);
+    try {
+      const token = await (user as any).getIdToken();
+      const response = await fetch('/api/member/history?type=orders', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error('Could not clear order history.');
+      toast({ title: 'Order history cleared', description: 'Your order log has been removed.' });
+    } catch (error: any) { toast({ title: 'Unable to clear history', description: error.message, variant: 'destructive' }); }
+    finally { setIsClearing(false); }
+  }
 
   async function action(order: Order, actionName: string, extra: Record<string, unknown> = {}) {
     if (!user) return;
@@ -124,7 +137,7 @@ export default function OrdersPage() {
   return <div>
     <div className="mb-6"><h1 className="text-2xl font-bold font-headline">{isBusiness ? 'Incoming Orders' : 'My Purchase History'}</h1><p className="text-muted-foreground">{isBusiness ? 'Fulfill orders, verify pickup and manage customer requests.' : 'Track payment, delivery and pickup securely.'}</p></div>
     {ordersError && <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">We could not load your orders right now. Please refresh the page; if it keeps happening, contact support.</div>}
-    <Card><CardHeader><CardTitle>All Orders</CardTitle><CardDescription>Order actions are validated by the server.</CardDescription></CardHeader><CardContent>
+    <Card><CardHeader className="flex-row items-start justify-between space-y-0"><div><CardTitle>All Orders</CardTitle><CardDescription>Order actions are validated by the server.</CardDescription></div><Button variant="outline" size="sm" onClick={clearOrderHistory} disabled={isClearing || !orders?.length}><Trash2 className="mr-2 h-4 w-4" />Clear log</Button></CardHeader><CardContent>
       <Table><TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>{isBusiness ? 'Customer' : 'Seller'}</TableHead><TableHead>Date</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Handover</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
       <TableBody>{ordersLoading ? <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin" /></TableCell></TableRow> : orders?.length ? orders.map(order => <TableRow key={order.id}>
         <TableCell className="font-medium" title={order.id}>{order.id.substring(0, 8)}...</TableCell><TableCell>{isBusiness ? order.buyerName : 'Business'}</TableCell><TableCell>{order.orderDate?.toDate ? order.orderDate.toDate().toLocaleDateString() : '—'}</TableCell><TableCell>${Number(order.totalCost || 0).toFixed(2)}</TableCell>
