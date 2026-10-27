@@ -16,6 +16,7 @@ interface SubscriptionPlan {
   maxImages?: number | null;
   listings?: number | null;
   maxListings?: number | null;
+  billingInterval?: 'month' | 'year';
 }
 
 interface SubscriptionPlanCardProps {
@@ -33,8 +34,10 @@ function formatStorage(bytes?: number, legacyGb?: number) {
   return `${legacyGb || 0} GB`;
 }
 
-export default function SubscriptionPlanCard({ plan, isActive = false, onSelect, showPricing = true }: SubscriptionPlanCardProps) {
+export default function SubscriptionPlanCard({ plan, isActive = false, onSelect, showPricing = true, billingInterval = 'month' }: SubscriptionPlanCardProps & { billingInterval?: 'month' | 'year' }) {
   const maxListings = plan.maxListings ?? plan.listings;
+  const displayedPrice = billingInterval === 'year' ? plan.price * 12 * 0.8 : plan.price;
+  const formattedPrice = Number.isInteger(displayedPrice) ? displayedPrice.toString() : displayedPrice.toFixed(2);
   return (
     <Card className={`relative h-full flex flex-col ${isActive ? "border-primary border-2 bg-primary/5" : ""}`}>
       {isActive && <Badge className="absolute top-4 right-4 bg-primary">Active Plan</Badge>}
@@ -43,7 +46,7 @@ export default function SubscriptionPlanCard({ plan, isActive = false, onSelect,
         <CardDescription>{plan.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-6">
-        {showPricing && <div className="border-t pt-4"><div className="text-3xl font-bold">${plan.price}<span className="text-lg font-normal text-muted-foreground">/month</span></div></div>}
+        {showPricing && <div className="border-t pt-4"><div className="text-3xl font-bold">${formattedPrice}<span className="text-lg font-normal text-muted-foreground">/{billingInterval === 'year' ? 'year' : 'month'}</span></div>{billingInterval === 'year' && plan.price > 0 && <p className="mt-1 text-sm text-green-600">20% yearly savings</p>}</div>}
         <div className="bg-secondary/50 p-4 rounded-lg space-y-3">
           <h4 className="font-semibold text-sm">Limits</h4>
           <div className="space-y-2 text-sm">
