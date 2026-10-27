@@ -19,7 +19,7 @@ export interface SubscriptionPlanRecord extends SubscriptionEntitlements {
   description: string;
   price: number;
   currency?: string;
-  interval?: 'month';
+  interval?: 'month' | 'year';
   priority?: number;
   active?: boolean;
   stripePriceId?: string;
@@ -53,7 +53,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanRecord[] = [
     id: 'basic',
     name: 'Basic',
     description: 'Affordable business-growth tools for small businesses.',
-    price: 2,
+    price: 3,
     currency: 'USD',
     interval: 'month',
     membershipTier: 'basic',
@@ -74,7 +74,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanRecord[] = [
     id: 'plus',
     name: 'Plus',
     description: 'More visibility and customer tools for growing businesses.',
-    price: 4,
+    price: 5,
     currency: 'USD',
     interval: 'month',
     membershipTier: 'plus',
@@ -95,7 +95,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanRecord[] = [
     id: 'pro',
     name: 'Pro',
     description: 'Maximum business tools for established and high-volume members.',
-    price: 10,
+    price: 12,
     currency: 'USD',
     interval: 'month',
     membershipTier: 'pro',

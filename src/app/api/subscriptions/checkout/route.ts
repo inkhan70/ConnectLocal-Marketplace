@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     const decoded = await verifyBearerToken(request);
     const body = await request.json().catch(() => ({}));
     const planId = typeof body.planId === 'string' ? body.planId : '';
+    const interval = body.interval === 'year' ? 'year' : 'month';
     if (!planId) return errorResponse('planId is required.');
 
     const db = getAdminDb();
@@ -24,8 +25,6 @@ export async function POST(request: NextRequest) {
     const user = userSnap.data() || {};
 
     if (user.isAdmin === true) return errorResponse('Admin accounts do not use member subscriptions.', 403);
-    if (!user.role || user.role === 'buyer') return errorResponse('Only business/service members can subscribe.', 403);
-
     const plan = await getSubscriptionPlan(planId);
     if (!plan) return errorResponse('Subscription plan not found or inactive.', 404);
     const hasActivePaidSubscription = user.subscriptionStatus === 'active' && !!user.stripeSubscriptionId;
@@ -50,12 +49,14 @@ export async function POST(request: NextRequest) {
     params.set('cancel_url', `${appUrl}/dashboard/subscription?subscription=cancelled&plan=${encodeURIComponent(plan.id)}`);
     params.set('line_items[0][price_data][currency]', String(plan.currency || 'usd').toLowerCase());
     params.set('line_items[0][price_data][product_data][name]', `ConnectLocal ${plan.name}`);
-    params.set('line_items[0][price_data][unit_amount]', String(Math.round(Number(plan.price) * 100)));
-    params.set('line_items[0][price_data][recurring][interval]', 'month');
+    const unitAmount = interval === 'year' ? Math.round(Number(plan.price) * 12 * 0.8 * 100) : Math.round(Number(plan.price) * 100);
+    params.set('line_items[0][price_data][unit_amount]', String(unitAmount));
+    params.set('line_items[0][price_data][recurring][interval]', interval);
     params.set('line_items[0][quantity]', '1');
     params.set('client_reference_id', decoded.uid);
     params.set('metadata[uid]', decoded.uid);
     params.set('metadata[planId]', plan.id);
+    params.set('metadata[interval]', interval);
     params.set('subscription_data[metadata][uid]', decoded.uid);
     params.set('subscription_data[metadata][planId]', plan.id);
     // Stripe rejects requests that send both `customer` and `customer_email`.
