@@ -26,6 +26,8 @@ interface LanguageContextType {
   setLanguage: (language: string) => void;
   t: (key: keyof Translations | string) => string;
   availableLanguages: LanguageInfo[];
+  installedLanguages: string[];
+  downloadLanguagePack: (language: string) => Promise<void>;
 }
 
 // Create the context with a default value
@@ -36,6 +38,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguageState] = useState('en');
   const [translations, setTranslations] = useState<Record<string, Translations>>({ en });
   const [availableLanguages, setAvailableLanguages] = useState<LanguageInfo[]>(() => bundledLanguageInfo);
+  const [installedLanguages, setInstalledLanguages] = useState<string[]>([]);
 
   const loadCustomLanguages = useCallback(() => {
     const customLangsRaw = localStorage.getItem('customLanguages');
@@ -60,6 +63,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   useEffect(() => {
+    const savedLanguage = localStorage.getItem('selectedLanguage');
+    const savedPacks = localStorage.getItem('languagePacks');
+    if (savedLanguage && bundledLanguageInfo.some((lang) => lang.code === savedLanguage)) setLanguageState(savedLanguage);
+    if (savedPacks) {
+      try { setInstalledLanguages(Object.keys(JSON.parse(savedPacks))); } catch { setInstalledLanguages([]); }
+    }
     loadCustomLanguages();
     
     window.addEventListener('languageChange', loadCustomLanguages);
@@ -70,14 +79,34 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [loadCustomLanguages]);
 
 
+  const downloadLanguagePack = useCallback(async (lang: string) => {
+    if (lang === 'en') {
+      const packs = JSON.parse(localStorage.getItem('languagePacks') || '{}');
+      packs.en = { code: 'en', name: 'English', dict: en };
+      localStorage.setItem('languagePacks', JSON.stringify(packs));
+      setInstalledLanguages(Object.keys(packs));
+      return;
+    }
+    const module = await import(`@/locales/${lang}.json`);
+    const packs = JSON.parse(localStorage.getItem('languagePacks') || '{}');
+    packs[lang] = { code: lang, name: bundledLanguageInfo.find((item) => item.code === lang)?.name || lang, dict: module.default };
+    localStorage.setItem('languagePacks', JSON.stringify(packs));
+    setInstalledLanguages(Object.keys(packs));
+    window.dispatchEvent(new Event('languageChange'));
+  }, []);
+
   const setLanguage = useCallback((lang: string) => {
     if (language === lang) return;
+    localStorage.setItem('selectedLanguage', lang);
 
     const loadTranslation = async () => {
         try {
             let newTranslation;
             if (lang !== 'en' && !translations[lang]) {
+                localStorage.setItem('selectedLanguage', lang);
+                const savedPacks = JSON.parse(localStorage.getItem('languagePacks') || '{}');
                 const isCustom = !bundledLanguageInfo.some(l => l.code === lang);
+                if (savedPacks[lang]) newTranslation = savedPacks[lang].dict;
                 if (isCustom) {
                     const customLangsRaw = localStorage.getItem('customLanguages');
                     if (customLangsRaw) {
@@ -122,7 +151,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, availableLanguages }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, availableLanguages, installedLanguages, downloadLanguagePack }}>
       {children}
     </LanguageContext.Provider>
   );
