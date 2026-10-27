@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const planId = typeof body.planId === 'string' ? body.planId : '';
     const interval = body.interval === 'year' ? 'year' : 'month';
+    if (decoded.role === 'buyer' && planId !== 'community') return errorResponse('Buyer accounts use the free Community plan.', 403);
     if (!planId) return errorResponse('planId is required.');
 
     const db = getAdminDb();

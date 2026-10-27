@@ -40,6 +40,7 @@ export default function SubscriptionPage() {
   const firestore = useFirestore();
   const [isChangingPlan, setIsChangingPlan] = useState(false);
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
+  const isBuyer = userProfile?.role === 'buyer';
 
   const plansQuery = useMemoFirebase(() => query(collection(firestore, "subscriptionPlans")), [firestore]);
   const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
@@ -53,6 +54,10 @@ export default function SubscriptionPage() {
   const statusMessage = searchParams.get("subscription");
 
   const handleSelectPlan = async (planId: string) => {
+    if (isBuyer && planId !== 'community') {
+      toast({ title: 'Community plan only', description: 'Buyer accounts do not need a paid membership plan.' });
+      return;
+    }
     if (!auth.currentUser) {
       router.push(`/signin?redirect=${encodeURIComponent(`/dashboard/subscription?plan=${planId}`)}`);
       return;
@@ -100,12 +105,12 @@ export default function SubscriptionPage() {
   // category/subcategory records must not be rendered as subscription plans.
   const sortedPlans = (Array.isArray(plans) && plans.length > 0
     ? plans
-        .filter((plan) => DEFAULT_SUBSCRIPTION_PLANS.some((candidate) => candidate.id === plan.id))
+        .filter((plan) => DEFAULT_SUBSCRIPTION_PLANS.some((candidate) => candidate.id === plan.id) && (!isBuyer || plan.id === 'community'))
         .map((plan) => {
           const fallback = DEFAULT_SUBSCRIPTION_PLANS.find((candidate) => candidate.id === plan.id);
           return { ...fallback, ...plan, price: fallback?.price ?? plan.price, interval: fallback?.interval ?? 'month', features: Array.isArray(plan.features) ? plan.features : fallback?.features || [] };
         })
-    : DEFAULT_SUBSCRIPTION_PLANS
+    : (isBuyer ? DEFAULT_SUBSCRIPTION_PLANS.filter((plan) => plan.id === 'community') : DEFAULT_SUBSCRIPTION_PLANS)
   ).sort((a, b) => (a.price || 0) - (b.price || 0));
   const effectiveStatus = getSubscriptionStatus(userProfile?.subscriptionStartDate, userProfile?.subscriptionEndDate);
   const isActive = effectiveStatus === 'active';
@@ -116,7 +121,7 @@ export default function SubscriptionPage() {
       <div className="border-b"><div className="container mx-auto px-4 py-6">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"><ArrowLeft className="h-4 w-4" />Back to Dashboard</Link>
         <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-        <p className="text-muted-foreground mt-2">Free is enough to establish your business. Paid plans add tools that help it grow.</p>
+        <p className="text-muted-foreground mt-2">{isBuyer ? 'Buyer accounts use the free Community plan. No paid membership is required.' : 'Free is enough to establish your business. Paid plans add tools that help it grow.'}</p>
       </div></div>
 
       <div className="container mx-auto px-4 py-8">
@@ -134,7 +139,7 @@ export default function SubscriptionPage() {
 
         {isActive && userProfile?.stripeSubscriptionId && <div className="flex justify-end mt-4"><Button variant="outline" onClick={openBillingPortal} disabled={isChangingPlan}><CreditCard className="mr-2 h-4 w-4" />Manage Billing</Button></div>}
 
-        <div className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4 mb-2"><div><h2 className="text-2xl font-bold">Plans</h2><p className="text-muted-foreground mt-2">Storage and image limits are infrastructure limits; paid value comes from visibility, leads, customer tools and business features.</p></div><div className="inline-flex rounded-lg border p-1" role="group" aria-label="Billing cycle"><Button type="button" size="sm" variant={billingInterval === 'month' ? 'default' : 'ghost'} onClick={() => setBillingInterval('month')}>Monthly</Button><Button type="button" size="sm" variant={billingInterval === 'year' ? 'default' : 'ghost'} onClick={() => setBillingInterval('year')}>Yearly <span className="ml-1 text-xs">Save 20%</span></Button></div></div>
+        <div className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4 mb-2"><div><h2 className="text-2xl font-bold">{isBuyer ? 'Your plan' : 'Plans'}</h2><p className="text-muted-foreground mt-2">{isBuyer ? 'Your Community access is free and includes everything buyers need.' : 'Storage and image limits are infrastructure limits; paid value comes from visibility, leads, customer tools and business features.'}</p></div>{!isBuyer && <div className="inline-flex rounded-lg border p-1" role="group" aria-label="Billing cycle"><Button type="button" size="sm" variant={billingInterval === 'month' ? 'default' : 'ghost'} onClick={() => setBillingInterval('month')}>Monthly</Button><Button type="button" size="sm" variant={billingInterval === 'year' ? 'default' : 'ghost'} onClick={() => setBillingInterval('year')}>Yearly <span className="ml-1 text-xs">Save 20%</span></Button></div>}</div>
           {plansLoading ? <div className="flex justify-center min-h-96 items-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : sortedPlans.length === 0 ? <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>No plans are configured yet. An administrator can seed the recommended ConnectLocal plans.</AlertDescription></Alert> : <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">{sortedPlans.map((plan) => <SubscriptionPlanCard key={plan.id} plan={{ id: plan.id || '', name: plan.name, description: plan.description, price: plan.price, features: plan.features || [], storageLimit: plan.storageLimit, storageLimitBytes: plan.storageLimitBytes, maxImages: plan.maxImages, listings: plan.listings, maxListings: plan.maxListings, billingInterval }} isActive={userProfile?.subscriptionPlanId === plan.id} billingInterval={billingInterval} onSelect={handleSelectPlan} />)}</div>}
         </div>
       </div>
