@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, Menu, LogOut, Search, Heart, MoreVertical } from 'lucide-react';
+import { Globe, Menu, LogOut, Search, Heart, MoreVertical, Download, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -19,7 +19,7 @@ import * as firebaseAuth from 'firebase/auth';
 import { Cart } from './Cart';
 
 export function Header() {
-  const { language, setLanguage, t, availableLanguages } = useLanguage();
+  const { language, setLanguage, t, availableLanguages, installedLanguages, downloadLanguagePack } = useLanguage();
   const { user } = useAuth();
   const { isAdmin } = useIsAdmin();
   const firebaseAuth = useFirebaseAuth();
@@ -87,13 +87,12 @@ export function Header() {
                   <ScrollArea className="h-auto max-h-48">
                     <div className="flex flex-col space-y-1 pl-6">
                       {availableLanguages.map(lang => (
-                        <button
-                          key={lang.code}
-                          className={`text-left text-sm px-2 py-1.5 rounded transition-colors hover:bg-muted ${language === lang.code ? 'bg-muted font-semibold' : ''}`}
-                          onClick={() => setLanguage(lang.code as any)}
-                        >
-                          {lang.name}
-                        </button>
+                        <div key={lang.code} className="flex items-center gap-1">
+                          <button className={`flex-1 text-left text-sm px-2 py-1.5 rounded transition-colors hover:bg-muted ${language === lang.code ? 'bg-muted font-semibold' : ''}`} onClick={() => setLanguage(lang.code)}>{lang.name}</button>
+                          <button className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title={installedLanguages.includes(lang.code) ? 'Language pack downloaded' : `Download ${lang.name} language pack`} aria-label={installedLanguages.includes(lang.code) ? `${lang.name} downloaded` : `Download ${lang.name} language pack`} onClick={async (event) => { event.stopPropagation(); await downloadLanguagePack(lang.code); }}>
+                            {installedLanguages.includes(lang.code) ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Download className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -155,16 +154,10 @@ export function Header() {
                                      <ScrollArea className="h-auto max-h-48">
                                         <div className="pl-7 flex flex-col space-y-2">
                                             {availableLanguages.map(lang => (
-                                                <button
-                                                    key={lang.code}
-                                                    className={`text-left text-sm transition-colors hover:text-foreground/80 ${language === lang.code ? 'text-foreground font-semibold' : 'text-foreground/60'}`}
-                                                    onClick={() => {
-                                                        setLanguage(lang.code as any)
-                                                        // Optionally close the sheet here
-                                                    }}
-                                                >
-                                                    {lang.name}
-                                                </button>
+                                                <div key={lang.code} className="flex items-center gap-2">
+                                                    <button className={`flex-1 text-left text-sm transition-colors hover:text-foreground/80 ${language === lang.code ? 'text-foreground font-semibold' : 'text-foreground/60'}`} onClick={() => setLanguage(lang.code)}>{lang.name}</button>
+                                                    <button className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title={installedLanguages.includes(lang.code) ? 'Language pack downloaded' : `Download ${lang.name} language pack`} aria-label={installedLanguages.includes(lang.code) ? `${lang.name} downloaded` : `Download ${lang.name} language pack`} onClick={async () => downloadLanguagePack(lang.code)}>{installedLanguages.includes(lang.code) ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Download className="h-3.5 w-3.5" />}</button>
+                                                </div>
                                             ))}
                                         </div>
                                      </ScrollArea>

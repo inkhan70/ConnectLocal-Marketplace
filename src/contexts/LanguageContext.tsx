@@ -26,16 +26,58 @@ interface LanguageContextType {
   setLanguage: (language: string) => void;
   t: (key: keyof Translations | string) => string;
   availableLanguages: LanguageInfo[];
+  installedLanguages: string[];
+  downloadLanguagePack: (language: string) => Promise<void>;
 }
 
 // Create the context with a default value
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LANGUAGE_PACK_VERSION = 'v2';
+const LANGUAGE_PACK_DB = 'connectlocal-language-packs';
+const LANGUAGE_PACK_STORE = 'packs';
+
+function openLanguagePackDb(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = indexedDB.open(LANGUAGE_PACK_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(LANGUAGE_PACK_STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readLanguagePack(lang: string): Promise<Translations | null> {
+  const db = await openLanguagePackDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    const request = db.transaction(LANGUAGE_PACK_STORE).objectStore(LANGUAGE_PACK_STORE).get(lang);
+    request.onsuccess = () => {
+      const value = request.result;
+      resolve(value?.version === LANGUAGE_PACK_VERSION ? value.dict : null);
+    };
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writeLanguagePack(lang: string, dict: Translations) {
+  const db = await openLanguagePackDb();
+  if (!db) return;
+  const transaction = db.transaction(LANGUAGE_PACK_STORE, 'readwrite');
+  transaction.objectStore(LANGUAGE_PACK_STORE).put({ version: LANGUAGE_PACK_VERSION, dict }, lang);
+}
 
 // Create the provider component
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState('en');
   const [translations, setTranslations] = useState<Record<string, Translations>>({ en });
   const [availableLanguages, setAvailableLanguages] = useState<LanguageInfo[]>(() => bundledLanguageInfo);
+  const [installedLanguages, setInstalledLanguages] = useState<string[]>([]);
+  const installedLanguagesRef = React.useRef(new Set<string>());
+
+  const updateInstalledLanguages = useCallback((languages: string[]) => {
+    installedLanguagesRef.current = new Set(languages);
+    setInstalledLanguages(languages);
+  }, []);
 
   const loadCustomLanguages = useCallback(() => {
     const customLangsRaw = localStorage.getItem('customLanguages');
@@ -60,6 +102,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   useEffect(() => {
+    const savedLanguage = localStorage.getItem('selectedLanguage');
+    if (savedLanguage && bundledLanguageInfo.some((lang) => lang.code === savedLanguage)) setLanguageState(savedLanguage);
+    if (typeof indexedDB !== 'undefined') {
+      void Promise.all(bundledLanguageInfo.map(async ({ code }) => (await readLanguagePack(code)) ? code : null))
+        .then((languages) => updateInstalledLanguages(languages.filter((code): code is string => Boolean(code))));
+    }
     loadCustomLanguages();
     
     window.addEventListener('languageChange', loadCustomLanguages);
@@ -67,17 +115,27 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
         window.removeEventListener('languageChange', loadCustomLanguages);
     }
-  }, [loadCustomLanguages]);
+  }, [loadCustomLanguages, updateInstalledLanguages]);
 
+
+  const downloadLanguagePack = useCallback(async (lang: string) => {
+    const dict = lang === 'en' ? en : (await import(`@/locales/${lang}.json`)).default;
+    await writeLanguagePack(lang, dict);
+    updateInstalledLanguages([...installedLanguagesRef.current, lang].filter((value, index, values) => values.indexOf(value) === index));
+    window.dispatchEvent(new Event('languageChange'));
+  }, [updateInstalledLanguages]);
 
   const setLanguage = useCallback((lang: string) => {
     if (language === lang) return;
+    localStorage.setItem('selectedLanguage', lang);
+    document.cookie = `connectlocal_locale=${encodeURIComponent(lang)}; Max-Age=31536000; Path=/; SameSite=Lax`;
 
     const loadTranslation = async () => {
         try {
             let newTranslation;
             if (lang !== 'en' && !translations[lang]) {
                 const isCustom = !bundledLanguageInfo.some(l => l.code === lang);
+                newTranslation = await readLanguagePack(lang);
                 if (isCustom) {
                     const customLangsRaw = localStorage.getItem('customLanguages');
                     if (customLangsRaw) {
@@ -111,7 +169,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const t = (key: keyof Translations | string): string => {
     const lang_dict = translations[language] || translations['en'];
     const translationKey = key as keyof Translations;
-    return lang_dict[translationKey] || translations['en'][translationKey] || String(key);
+    return lang_dict[translationKey] || translations['en'][translationKey] || '';
   };
   
   useEffect(() => {
@@ -122,7 +180,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, availableLanguages }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, availableLanguages, installedLanguages, downloadLanguagePack }}>
       {children}
     </LanguageContext.Provider>
   );
