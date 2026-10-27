@@ -1,5 +1,6 @@
 
 import type {Metadata} from 'next';
+import { cookies } from 'next/headers';
 import './globals.css';
 import { cn } from "@/lib/utils";
 import { Header } from '@/components/Header';
@@ -23,8 +24,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = cookies().get('connectlocal_locale')?.value || 'en';
+  const safeLocale = ['en', 'ur', 'ar', 'fa', 'hi'].includes(locale) ? locale : 'en';
+  const direction = ['ur', 'ar', 'fa'].includes(safeLocale) ? 'rtl' : 'ltr';
+
   return (
-    <html lang="en" suppressHydrationWarning className="bg-background">
+    <html lang={safeLocale} dir={direction} suppressHydrationWarning className="bg-background">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
