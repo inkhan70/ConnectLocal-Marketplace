@@ -1,8 +1,12 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -10,215 +14,411 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone, Loader2, Power } from "lucide-react";
-import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, MoreHorizontal, Pencil, PlusCircle, Power, Trash2 } from "lucide-react";
+import { getIdToken } from "firebase/auth";
+import { makeCategorySlug, normalizeCategoryName, type CategoryItem } from "@/lib/category-management";
 
-
-export interface Category {
-    id: string;
-    name: string;
-    icon: string;
-    order: number;
-    slug?: string;
-    parentId?: string;
-    isActive?: boolean;
-}
-
-interface CategoriesDoc {
-    list: Category[];
-}
-
-const iconMap: { [key: string]: React.ElementType } = {
-    UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone
-};
-
-const defaultCategories: Category[] = [
-    { id: 'cat1', name: 'Food', icon: "UtensilsCrossed", order: 1, slug: 'food', isActive: true },
-    { id: 'cat2', name: 'Drinks', icon: "GlassWater", order: 2},
-    { id: 'cat3', name: 'Electronics', icon: "Laptop", order: 3},
-    { id: 'cat4', name: 'Medical', icon: "Pill", order: 4},
-    { id: 'cat5', name: 'Shoes', icon: "Footprints", order: 5},
-    { id: 'cat6', name: 'Beauty', icon: "Scissors", order: 6},
-    { id: 'cat7', name: 'Jewelry', icon: "Gem", order: 7},
-    { id: 'cat8', name: 'Real Estate', icon: "Building", order: 8},
-    { id: 'cat9', name: 'Apparel', icon: 'Shirt', order: 9 },
-    { id: 'cat10', name: 'Home & Garden', icon: 'Home', order: 10 },
-    { id: 'cat11', name: 'Automotive', icon: 'Car', order: 11 },
-    { id: 'cat12', name: 'Services', icon: 'Wrench', order: 12 },
-    { id: 'cat13', name: 'Pets', icon: 'Bone', order: 13 },
+const iconChoices = [
+  "MoreHorizontal",
+  "ShoppingBag",
+  "UtensilsCrossed",
+  "Laptop",
+  "Pill",
+  "Footprints",
+  "Scissors",
+  "Gem",
+  "Building",
+  "Shirt",
+  "Home",
+  "Car",
+  "Wrench",
+  "Bone",
+  "GlassWater",
 ];
 
+const defaultIcon = "MoreHorizontal";
+
 export default function AdminCategoriesPage() {
-    const { toast } = useToast();
-    const firestore = useFirestore();
-    
-    const [categoryName, setCategoryName] = useState("");
-    const [categoryIcon, setCategoryIcon] = useState("");
-    const [parentId, setParentId] = useState("none");
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { isAdmin, checking: isAdminChecking } = useIsAdmin();
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selectedParentId, setSelectedParentId] = useState<string>("none");
+  const [formName, setFormName] = useState("");
+  const [formIcon, setFormIcon] = useState(defaultIcon);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
 
-    const categoriesDocRef = useMemoFirebase(() => doc(firestore, 'app_config', 'categories'), [firestore]);
-    const { data: categoriesDoc, isLoading: loading, error } = useDoc<CategoriesDoc>(categoriesDocRef);
+  const parentOptions = useMemo(
+    () => categories.filter((category) => !category.parentId && category.isActive !== false),
+    [categories],
+  );
 
-    useEffect(() => {
-        if (categoriesDoc) {
-            // If the document exists, use its data. If list is empty/null, use defaults.
-            const categoryList = categoriesDoc.list && categoriesDoc.list.length > 0 ? categoriesDoc.list : defaultCategories;
-            setCategories(categoryList.sort((a, b) => a.order - b.order));
-        } else if (!loading && !categoriesDoc) {
-            // If doc doesn't exist and we're not loading, initialize with defaults
-            setCategories(defaultCategories);
-        }
-        if (error) {
-            toast({ title: "Error", description: "Could not load categories.", variant: "destructive"});
-        }
-    }, [categoriesDoc, loading, error, toast]);
+  const groupedSubcategories = useMemo(() => {
+    const groups = new Map<string, CategoryItem[]>();
+    for (const category of categories) {
+      if (!category.parentId) continue;
+      const list = groups.get(category.parentId) || [];
+      list.push(category);
+      groups.set(category.parentId, list);
+    }
+    return groups;
+  }, [categories]);
 
-    const saveCategories = async (updatedCategories: Category[]) => {
-        setIsSaving(true);
-        try {
-            await setDoc(categoriesDocRef, { list: updatedCategories });
-            toast({ title: "Success", description: "Category list updated." });
-        } catch (err) {
-            console.error("Error saving categories: ", err);
-            toast({ title: "Error", description: "Could not save categories.", variant: "destructive"});
-        } finally {
-            setIsSaving(false);
-        }
-    };
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/categories", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to load categories.");
+      const list = Array.isArray(payload.list) ? payload.list : [];
+      setCategories(list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
+    } catch (error: any) {
+      console.error("Failed to load categories:", error);
+      toast({ title: "Load failed", description: error.message || "Could not load categories.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const authenticatedRequest = async (method: "POST" | "PUT" | "DELETE", body: Record<string, any>) => {
+    if (!user) throw new Error("Administrator authentication is required.");
+    const token = await getIdToken(user, true);
+    const response = await fetch("/api/admin/categories", {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.error || "Operation failed.");
+    return payload;
+  };
 
-    const toSlug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  useEffect(() => {
+    void fetchCategories();
+  }, []);
 
-    const handleToggleCategory = (id: string) => {
-        saveCategories(categories.map((category) => category.id === id ? { ...category, isActive: category.isActive === false } : category));
-    };
+  const resetForm = () => {
+    setFormName("");
+    setFormIcon(defaultIcon);
+    setSelectedParentId("none");
+    setEditingId(null);
+  };
 
-    const handleAddCategory = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        
-        if (!categoryName || !categoryIcon) {
-            toast({ title: "Missing Fields", description: "Please provide a name and select an icon.", variant: "destructive" });
-            return;
-        }
+  const startEditing = (category: CategoryItem) => {
+    setEditingId(category.id);
+    setFormName(category.name);
+    setFormIcon(category.icon || defaultIcon);
+    setSelectedParentId(category.parentId || "none");
+  };
 
-        const newCategory: Category = { 
-            id: `cat_${Date.now()}`, 
-            name: categoryName, 
-            icon: categoryIcon, 
-            order: categories.length + 1,
-            slug: toSlug(categoryName),
-            parentId: parentId === 'none' ? undefined : parentId,
-            isActive: true,
-        };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!formName.trim()) {
+      toast({ title: "Missing name", description: "Please enter a category name.", variant: "destructive" });
+      return;
+    }
 
-        const updatedCategories = [...categories, newCategory];
-        saveCategories(updatedCategories);
+    try {
+      setSaving(true);
+      const payload = {
+        id: editingId || undefined,
+        name: normalizeCategoryName(formName),
+        icon: formIcon || defaultIcon,
+        slug: makeCategorySlug(formName),
+        parentId: selectedParentId === "none" ? null : selectedParentId,
+        isActive: true,
+      };
 
-        setCategoryName("");
-        setCategoryIcon("");
-        setParentId("none");
-    };
+      if (editingId) {
+        await authenticatedRequest("PUT", payload);
+        toast({ title: "Category updated", description: `"${payload.name}" was updated.` });
+      } else {
+        await authenticatedRequest("POST", payload);
+        toast({ title: "Category created", description: `"${payload.name}" was added.` });
+      }
+      resetForm();
+      await fetchCategories();
+    } catch (error: any) {
+      toast({ title: "Action failed", description: error.message || "Unable to save category.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggle = async (category: CategoryItem) => {
+    try {
+      setSaving(true);
+      await authenticatedRequest("PUT", {
+        id: category.id,
+        name: category.name,
+        icon: category.icon || defaultIcon,
+        slug: category.slug || makeCategorySlug(category.name),
+        parentId: category.parentId || null,
+        isActive: category.isActive === false,
+      });
+      toast({
+        title: category.isActive === false ? "Category enabled" : "Category disabled",
+        description: `"${category.name}" is now ${category.isActive === false ? "active" : "inactive"}.`,
+      });
+      await fetchCategories();
+    } catch (error: any) {
+      toast({ title: "Toggle failed", description: error.message || "Could not update category status.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (category: CategoryItem) => {
+    try {
+      setSaving(true);
+      await authenticatedRequest("DELETE", { id: category.id });
+      toast({ title: "Category removed", description: `"${category.name}" was removed.` });
+      setDeleteTarget(null);
+      await fetchCategories();
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message || "Could not remove the category.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isAdminChecking) {
+    return (
+      <div className="flex min-h-[220px] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Administrator access required</CardTitle>
+          <CardDescription>You must be signed in as an administrator to manage categories.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold font-headline">Manage Categories</h1>
-        <p className="text-muted-foreground">
-          Add or remove application categories. Changes will be visible to all users.
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Manage Categories</h1>
+          <p className="text-muted-foreground">Add, edit, delete, enable, and disable categories and subcategories.</p>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
         <Card>
-            <CardHeader>
-                <CardTitle>Add New Category</CardTitle>
-                <CardDescription>
-                    Create a new category for businesses and products.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-            <form onSubmit={handleAddCategory} className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="cat-name">Category Name</Label>
-                    <Input id="cat-name" value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="e.g., Apparel" disabled={isSaving}/>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="cat-parent">Parent Category</Label>
-                    <Select value={parentId} onValueChange={setParentId} disabled={isSaving}>
-                        <SelectTrigger id="cat-parent"><SelectValue placeholder="Main category (no parent)" /></SelectTrigger>
-                        <SelectContent><SelectItem value="none">Main category (no parent)</SelectItem>{categories.filter((category) => !category.parentId && category.isActive !== false).map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="cat-icon">Category Icon</Label>
-                    <Select value={categoryIcon} onValueChange={setCategoryIcon} disabled={isSaving}>
-                        <SelectTrigger id="cat-icon">
-                            <SelectValue placeholder="Select an icon" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.entries(iconMap).map(([name, IconComponent]) => (
-                                <SelectItem key={name} value={name}>
-                                    <div className="flex items-center gap-2">
-                                        <IconComponent className="h-4 w-4" />
-                                        <span>{name}</span>
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button type="submit" disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    Add Category
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit category" : "Add category"}</CardTitle>
+            <CardDescription>{editingId ? "Update the current category or subcategory." : "Create a new main category or a child subcategory."}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="category-name">Name</Label>
+                <Input
+                  id="category-name"
+                  value={formName}
+                  onChange={(event) => setFormName(event.target.value)}
+                  placeholder="e.g. Apparel or Tailoring"
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-parent">Parent category</Label>
+                <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={saving}>
+                  <SelectTrigger id="category-parent">
+                    <SelectValue placeholder="Main category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Main category (no parent)</SelectItem>
+                    {parentOptions.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-icon">Icon</Label>
+                <Select value={formIcon} onValueChange={setFormIcon} disabled={saving}>
+                  <SelectTrigger id="category-icon">
+                    <SelectValue placeholder="Select icon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {iconChoices.map((iconName) => (
+                      <SelectItem key={iconName} value={iconName}>
+                        {iconName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  {editingId ? "Save changes" : "Add category"}
                 </Button>
-            </form>
-            </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Existing Categories</CardTitle>
-                <CardDescription>List of all current categories.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {loading ? (
-                    <div className="flex justify-center items-center h-24">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                ) : categories.length > 0 ? (
-                    <ul className="space-y-2">
-                        {categories.map(cat => {
-                            const IconComponent = iconMap[cat.icon] || MoreHorizontal;
-                            return (
-                                <li key={cat.id} className="flex items-center justify-between p-2 rounded-md border">
-                                    <div className="flex items-center gap-3">
-                                        <IconComponent className="h-5 w-5 text-muted-foreground" />
-                                        <div><p className="font-semibold">{cat.name}</p><p className="text-xs text-muted-foreground">{cat.parentId ? `Subcategory of ${categories.find((parent) => parent.id === cat.parentId)?.name || 'unknown'}` : 'Main category'}{cat.isActive === false ? ' · Inactive' : ''}</p></div>
-                                    </div>
-                                    <Button variant={cat.isActive === false ? "outline" : "secondary"} size="icon" disabled={isSaving} onClick={() => handleToggleCategory(cat.id)} title={cat.isActive === false ? 'Activate category' : 'Deactivate category'}><Power className="h-4 w-4" /></Button>
-                                </li>
-                            )
-                        })}
-                    </ul>
-                ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">No categories found.</p>
+                {editingId && (
+                  <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
+                    Cancel
+                  </Button>
                 )}
-            </CardContent>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Category list</CardTitle>
+            <CardDescription>Every category and subcategory is stored in the shared Firestore document.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex min-h-[180px] items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : categories.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No categories exist yet. Add the first one to the left.</p>
+            ) : (
+              <div className="space-y-4">
+                {categories
+                  .filter((category) => !category.parentId)
+                  .map((category) => {
+                    const children = groupedSubcategories.get(category.id) || [];
+                    return (
+                      <div key={category.id} className="rounded-lg border bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-background text-muted-foreground">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold">{category.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {category.isActive === false ? "Inactive" : "Active"} · Main category
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => startEditing(category)} disabled={saving}>
+                              <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button variant={category.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(category)} disabled={saving}>
+                              <Power className="mr-1 h-3.5 w-3.5" /> {category.isActive === false ? "Enable" : "Disable"}
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(category)} disabled={saving}>
+                              <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 border-t pt-3">
+                          {children.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No subcategories yet.</p>
+                          ) : (
+                            children.map((subcategory) => (
+                              <div key={subcategory.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium">{subcategory.name}</p>
+                                  <p className="text-xs text-muted-foreground">{subcategory.isActive === false ? "Inactive" : "Active"} · Subcategory</p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => startEditing(subcategory)} disabled={saving}>
+                                    <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                                  </Button>
+                                  <Button variant={subcategory.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(subcategory)} disabled={saving}>
+                                    <Power className="mr-1 h-3.5 w-3.5" /> {subcategory.isActive === false ? "Enable" : "Disable"}
+                                  </Button>
+                                  <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(subcategory)} disabled={saving}>
+                                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+
+                          <div className="pt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => {
+                                setEditingId(null);
+                                setFormName("");
+                                setFormIcon(defaultIcon);
+                                setSelectedParentId(category.id);
+                              }}
+                              disabled={saving}
+                            >
+                              <PlusCircle className="mr-2 h-4 w-4" /> Add subcategory
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {deleteTarget?.name}. Deleting a parent category also removes its subcategories, and the app will reject deletion if any business, product, service, or listing still references it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) {
+                  void handleDelete(deleteTarget);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
