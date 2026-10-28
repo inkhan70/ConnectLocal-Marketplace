@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { PlusCircle, Download, AlertTriangle, Loader2 } from "lucide-react";
+import { ImageLibrarySearch } from '@/components/ImageLibrarySearch';
 import Link from 'next/link';
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -82,6 +83,8 @@ export default function ProductImagesPage() {
         </div>
         <Button asChild><Link href="/dashboard/products"><PlusCircle className="mr-2 h-4 w-4" /> Add a Product</Link></Button>
       </div>
+
+      <Card className="mb-8"><CardContent className="p-6"><ImageLibrarySearch /></CardContent></Card>
 
       {loading ? (
         <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
