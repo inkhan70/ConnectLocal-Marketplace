@@ -53,6 +53,10 @@ export function validateCategoryPayload(
     return item.name.trim().toLowerCase() === normalizedName.toLowerCase();
   });
 
+  const normalizedSlug = makeCategorySlug(String(payload.slug ?? normalizedName));
+  const slugConflict = existingList.some((item) => item.id !== currentId && (item.slug || makeCategorySlug(item.name)) === normalizedSlug);
+  if (slugConflict) return { error: 'A category with that URL slug already exists. Choose a different name.' };
+
   if (duplicate) {
     return { error: 'A category with that name already exists in this section.' };
   }
@@ -62,7 +66,7 @@ export function validateCategoryPayload(
     name: normalizedName,
     icon: (payload.icon && String(payload.icon).trim()) || 'MoreHorizontal',
     order: Number.isFinite(Number(payload.order)) ? Number(payload.order) : existingList.length + 1,
-    slug: String(payload.slug ?? makeCategorySlug(normalizedName)).trim() || makeCategorySlug(normalizedName),
+    slug: normalizedSlug,
     parentId: normalizedParentId,
     isActive: payload.isActive !== false,
   };

@@ -46,10 +46,10 @@ export default function CategoriesPage() {
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const response = await fetch('/api/admin/categories', { headers: { 'Content-Type': 'application/json' } });
+        const response = await fetch('/api/categories', { headers: { 'Content-Type': 'application/json' } });
         const payload = await response.json().catch(() => ({}));
         if (response.ok && Array.isArray(payload.list) && payload.list.length > 0) {
-          const data = payload.list.filter((item: CategoryItem) => item.isActive !== false);
+          const data: CategoryItem[] = payload.list.filter((item: CategoryItem) => item.isActive !== false);
           setCategories(data.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
           return;
         }

@@ -32,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, MoreHorizontal, Pencil, PlusCircle, Power, Trash2 } from "lucide-react";
-import { getIdToken } from "firebase/auth";
 import { makeCategorySlug, normalizeCategoryName, type CategoryItem } from "@/lib/category-management";
 
 const iconChoices = [
@@ -54,6 +53,8 @@ const iconChoices = [
 ];
 
 const defaultIcon = "MoreHorizontal";
+
+export type Category = CategoryItem;
 
 export default function AdminCategoriesPage() {
   const { toast } = useToast();
@@ -93,7 +94,7 @@ export default function AdminCategoriesPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to load categories.");
-      const list = Array.isArray(payload.list) ? payload.list : [];
+      const list: CategoryItem[] = Array.isArray(payload.list) ? payload.list : [];
       setCategories(list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
     } catch (error: any) {
       console.error("Failed to load categories:", error);
@@ -105,7 +106,7 @@ export default function AdminCategoriesPage() {
 
   const authenticatedRequest = async (method: "POST" | "PUT" | "DELETE", body: Record<string, any>) => {
     if (!user) throw new Error("Administrator authentication is required.");
-    const token = await getIdToken(user, true);
+    const token = await user.getIdToken(true);
     const response = await fetch("/api/admin/categories", {
       method,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
