@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const appUrl = getAppUrl(request);
     const params = new URLSearchParams();
     params.set('mode', 'subscription');
-    params.set('success_url', `${appUrl}/dashboard/subscription?subscription=success&plan=${encodeURIComponent(plan.id)}`);
+    params.set('success_url', `${appUrl}/dashboard/subscription?subscription=success&plan=${encodeURIComponent(plan.id)}&session_id={CHECKOUT_SESSION_ID}`);
     params.set('cancel_url', `${appUrl}/dashboard/subscription?subscription=cancelled&plan=${encodeURIComponent(plan.id)}`);
     params.set('line_items[0][price_data][currency]', String(plan.currency || 'usd').toLowerCase());
     params.set('line_items[0][price_data][product_data][name]', `ConnectLocal ${plan.name}`);

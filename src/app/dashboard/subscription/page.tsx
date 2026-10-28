@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,26 @@ export default function SubscriptionPage() {
 
   const selectedPlanId = searchParams.get("plan");
   const statusMessage = searchParams.get("subscription");
+  const checkoutSessionId = searchParams.get("session_id");
+
+  useEffect(() => {
+    if (statusMessage !== 'success' || !checkoutSessionId || !auth.currentUser) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getIdToken(auth.currentUser!, true);
+        const response = await fetch('/api/subscriptions/reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ sessionId: checkoutSessionId }) });
+        const result = await response.json();
+        if (!cancelled && result.activated) {
+          toast({ title: 'Plan activated', description: 'Stripe confirmed your subscription and your account is now active.' });
+          router.replace('/dashboard/subscription');
+        }
+      } catch (error) {
+        console.error('[v0] Subscription reconciliation failed:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [checkoutSessionId, router, statusMessage, toast]);
 
   const handleSelectPlan = async (planId: string) => {
     if (isBuyer && planId !== 'community') {
