@@ -86,11 +86,16 @@ export default function AdminCategoriesPage() {
   }, [categories]);
 
   const fetchCategories = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      const token = await user.getIdToken(true);
       const response = await fetch("/api/admin/categories", {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to load categories.");
@@ -118,8 +123,10 @@ export default function AdminCategoriesPage() {
   };
 
   useEffect(() => {
-    void fetchCategories();
-  }, []);
+    if (!isAdminChecking && isAdmin && user) {
+      void fetchCategories();
+    }
+  }, [isAdmin, isAdminChecking, user]);
 
   const resetForm = () => {
     setFormName("");
