@@ -15,6 +15,12 @@ interface Ad {
     description: string;
     icon: "ShoppingBag" | "Award" | "Megaphone";
     targetAudience: string[];
+    status?: 'active' | 'paused' | 'expired';
+    startDate?: string;
+    endDate?: string;
+    targetRegions?: string[];
+    targetCategories?: string[];
+    subscriptionTiers?: string[];
 }
 
 const iconMap = {
@@ -41,7 +47,17 @@ export function AdBanner() {
     if (isLoading || !allAds) return;
 
     // 1. Find a suitable ad for the current user
-    const suitableAds = allAds.filter(ad => ad.targetAudience.includes(currentUserRole));
+    const now = Date.now();
+    const userRegion = String(userProfile?.city || userProfile?.state || userProfile?.countryCode || '').toLowerCase();
+    const userTier = String(userProfile?.subscriptionPlanId || 'community').toLowerCase();
+    const suitableAds = allAds.filter((ad) => {
+      if (ad.status === 'paused' || ad.status === 'expired') return false;
+      if (ad.startDate && new Date(ad.startDate).getTime() > now) return false;
+      if (ad.endDate && new Date(ad.endDate).getTime() < now) return false;
+      const regionMatch = !ad.targetRegions?.length || ad.targetRegions.some((region) => userRegion.includes(region.toLowerCase()));
+      const tierMatch = !ad.subscriptionTiers?.length || ad.subscriptionTiers.some((tier) => tier.toLowerCase() === userTier);
+      return ad.targetAudience.includes(currentUserRole) && regionMatch && tierMatch;
+    });
     const selectedAd = suitableAds.length > 0 ? suitableAds[0] : null;
     
     if (selectedAd) {

@@ -23,7 +23,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Trash2, Loader2, Megaphone, ShoppingBag, Award } from "lucide-react";
+import { PlusCircle, Trash2, Loader2, Megaphone, ShoppingBag, Award, Power } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -36,7 +36,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, doc, setDoc, deleteDoc, serverTimestamp, query } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, serverTimestamp, query, updateDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,13 +47,21 @@ const iconMap = {
     Megaphone
 };
 
-const audienceRoles = ["guest", "buyer", "company", "wholesaler", "distributor", "shopkeeper"];
+const audienceRoles = ["guest", "buyer", "company", "wholesaler", "distributor", "shopkeeper", "services"];
+const adTypes = ["banner", "featured_product", "sponsored_category", "push_notification", "interstitial"] as const;
 
 const adSchema = z.object({
   title: z.string().min(1, "Title is required."),
   description: z.string().min(1, "Description is required."),
   icon: z.enum(["ShoppingBag", "Award", "Megaphone"]),
   targetAudience: z.array(z.string()).min(1, "At least one target audience must be selected."),
+  type: z.enum(adTypes),
+  targetRegions: z.string().optional(),
+  targetCategories: z.string().optional(),
+  subscriptionTiers: z.string().optional(),
+  budget: z.coerce.number().min(0).default(0),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 type AdFormValues = z.infer<typeof adSchema>;
@@ -64,6 +72,16 @@ export interface Ad {
     description: string;
     icon: "ShoppingBag" | "Award" | "Megaphone";
     targetAudience: string[];
+    type?: typeof adTypes[number];
+    targetRegions?: string[];
+    targetCategories?: string[];
+    subscriptionTiers?: string[];
+    budget?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: 'active' | 'paused' | 'expired';
+    impressions?: number;
+    clicks?: number;
     createdAt: any;
 }
 
@@ -83,6 +101,13 @@ export default function AdminAdsPage() {
             description: "",
             icon: "Megaphone",
             targetAudience: [],
+            type: "banner",
+            budget: 0,
+            targetRegions: "",
+            targetCategories: "",
+            subscriptionTiers: "",
+            startDate: "",
+            endDate: "",
         },
     });
 
@@ -96,6 +121,14 @@ export default function AdminAdsPage() {
             await setDoc(adRef, {
                 id: adId,
                 ...data,
+                type: data.type,
+                targetRegions: data.targetRegions?.split(',').map((value) => value.trim()).filter(Boolean) || [],
+                targetCategories: data.targetCategories?.split(',').map((value) => value.trim()).filter(Boolean) || [],
+                subscriptionTiers: data.subscriptionTiers?.split(',').map((value) => value.trim()).filter(Boolean) || [],
+                budget: data.budget || 0,
+                status: 'active',
+                impressions: 0,
+                clicks: 0,
                 createdAt: serverTimestamp(),
             });
             toast({ title: "Success", description: "New advertisement created." });
@@ -106,6 +139,12 @@ export default function AdminAdsPage() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleToggleAd = async (ad: Ad) => {
+        const nextStatus = ad.status === 'active' ? 'paused' : 'active';
+        await updateDoc(doc(firestore, 'ads', ad.id), { status: nextStatus });
+        toast({ title: 'Ad status updated', description: `Advertisement ${nextStatus}.` });
     };
 
     const handleDeleteAd = async (id: string) => {
@@ -153,7 +192,8 @@ export default function AdminAdsPage() {
                         render={({ field }) => <Textarea id="ad-desc" {...field} placeholder="e.g., 'Get 20% off on all items.'" disabled={isSaving}/>}
                     />
                 </div>
-                 <div className="space-y-2">
+                 <div className="space-y-2"><Label htmlFor="ad-type">Ad Type</Label><Controller name="type" control={control} render={({ field }) => <Select onValueChange={field.onChange} value={field.value} disabled={isSaving}><SelectTrigger id="ad-type"><SelectValue /></SelectTrigger><SelectContent>{adTypes.map((type) => <SelectItem key={type} value={type}>{type.replace('_', ' ')}</SelectItem>)}</SelectContent></Select>} /></div>
+                <div className="space-y-2">
                     <Label htmlFor="ad-icon">Icon</Label>
                      <Controller
                         name="icon"
@@ -204,6 +244,7 @@ export default function AdminAdsPage() {
                         />
                     </Card>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><Label htmlFor="ad-regions">Regions</Label><Controller name="targetRegions" control={control} render={({ field }) => <Input id="ad-regions" {...field} placeholder="e.g. Lahore, Punjab" disabled={isSaving} />} /></div><div><Label htmlFor="ad-categories">Categories</Label><Controller name="targetCategories" control={control} render={({ field }) => <Input id="ad-categories" {...field} placeholder="e.g. food, electronics" disabled={isSaving} />} /></div><div><Label htmlFor="ad-tiers">Subscription tiers</Label><Controller name="subscriptionTiers" control={control} render={({ field }) => <Input id="ad-tiers" {...field} placeholder="e.g. community, plus" disabled={isSaving} />} /></div><div><Label htmlFor="ad-budget">Budget</Label><Controller name="budget" control={control} render={({ field }) => <Input id="ad-budget" type="number" min="0" step="0.01" {...field} disabled={isSaving} />} /></div><div><Label htmlFor="ad-start">Start date</Label><Controller name="startDate" control={control} render={({ field }) => <Input id="ad-start" type="datetime-local" {...field} disabled={isSaving} />} /></div><div><Label htmlFor="ad-end">End date</Label><Controller name="endDate" control={control} render={({ field }) => <Input id="ad-end" type="datetime-local" {...field} disabled={isSaving} />} /></div></div>
                 <Button type="submit" disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" />}
                     Create Ad
@@ -233,11 +274,10 @@ export default function AdminAdsPage() {
                                         <div className="flex-1">
                                             <p className="font-semibold">{ad.title}</p>
                                             <p className="text-sm text-muted-foreground">{ad.description}</p>
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                {ad.targetAudience.map(role => <span key={role} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{role}</span>)}
-                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-2">{ad.targetAudience.map(role => <span key={role} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{role}</span>)}<span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{ad.type || 'banner'}</span><span className="text-xs bg-muted px-2 py-0.5 rounded-full">{ad.status || 'active'}</span></div><p className="text-xs text-muted-foreground mt-1">Impressions: {ad.impressions || 0} · Clicks: {ad.clicks || 0} · Budget: ${ad.budget || 0}</p>
                                         </div>
                                     </div>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleToggleAd(ad)} title={ad.status === 'active' ? 'Pause ad' : 'Activate ad'}><Power className="h-4 w-4" /></Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">

@@ -20,18 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Trash2, UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone, Loader2 } from "lucide-react";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { PlusCircle, UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone, Loader2, Power } from "lucide-react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -41,6 +30,9 @@ export interface Category {
     name: string;
     icon: string;
     order: number;
+    slug?: string;
+    parentId?: string;
+    isActive?: boolean;
 }
 
 interface CategoriesDoc {
@@ -52,7 +44,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 const defaultCategories: Category[] = [
-    { id: 'cat1', name: 'Food', icon: "UtensilsCrossed", order: 1},
+    { id: 'cat1', name: 'Food', icon: "UtensilsCrossed", order: 1, slug: 'food', isActive: true },
     { id: 'cat2', name: 'Drinks', icon: "GlassWater", order: 2},
     { id: 'cat3', name: 'Electronics', icon: "Laptop", order: 3},
     { id: 'cat4', name: 'Medical', icon: "Pill", order: 4},
@@ -73,6 +65,7 @@ export default function AdminCategoriesPage() {
     
     const [categoryName, setCategoryName] = useState("");
     const [categoryIcon, setCategoryIcon] = useState("");
+    const [parentId, setParentId] = useState("none");
     const [categories, setCategories] = useState<Category[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -107,6 +100,12 @@ export default function AdminCategoriesPage() {
     };
 
 
+    const toSlug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    const handleToggleCategory = (id: string) => {
+        saveCategories(categories.map((category) => category.id === id ? { ...category, isActive: category.isActive === false } : category));
+    };
+
     const handleAddCategory = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         
@@ -120,6 +119,9 @@ export default function AdminCategoriesPage() {
             name: categoryName, 
             icon: categoryIcon, 
             order: categories.length + 1,
+            slug: toSlug(categoryName),
+            parentId: parentId === 'none' ? undefined : parentId,
+            isActive: true,
         };
 
         const updatedCategories = [...categories, newCategory];
@@ -127,11 +129,7 @@ export default function AdminCategoriesPage() {
 
         setCategoryName("");
         setCategoryIcon("");
-    };
-
-    const handleRemoveCategory = (id: string) => {
-        const updatedCategories = categories.filter(cat => cat.id !== id);
-        saveCategories(updatedCategories);
+        setParentId("none");
     };
 
   return (
@@ -156,6 +154,13 @@ export default function AdminCategoriesPage() {
                 <div className="space-y-2">
                     <Label htmlFor="cat-name">Category Name</Label>
                     <Input id="cat-name" value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="e.g., Apparel" disabled={isSaving}/>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="cat-parent">Parent Category</Label>
+                    <Select value={parentId} onValueChange={setParentId} disabled={isSaving}>
+                        <SelectTrigger id="cat-parent"><SelectValue placeholder="Main category (no parent)" /></SelectTrigger>
+                        <SelectContent><SelectItem value="none">Main category (no parent)</SelectItem>{categories.filter((category) => !category.parentId && category.isActive !== false).map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}</SelectContent>
+                    </Select>
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="cat-icon">Category Icon</Label>
@@ -201,29 +206,9 @@ export default function AdminCategoriesPage() {
                                 <li key={cat.id} className="flex items-center justify-between p-2 rounded-md border">
                                     <div className="flex items-center gap-3">
                                         <IconComponent className="h-5 w-5 text-muted-foreground" />
-                                        <p className="font-semibold">{cat.name}</p>
+                                        <div><p className="font-semibold">{cat.name}</p><p className="text-xs text-muted-foreground">{cat.parentId ? `Subcategory of ${categories.find((parent) => parent.id === cat.parentId)?.name || 'unknown'}` : 'Main category'}{cat.isActive === false ? ' · Inactive' : ''}</p></div>
                                     </div>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="icon" disabled={isSaving}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently delete the <strong>{cat.name}</strong> category.
-                                            </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleRemoveCategory(cat.id)}>
-                                                Delete
-                                            </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button variant={cat.isActive === false ? "outline" : "secondary"} size="icon" disabled={isSaving} onClick={() => handleToggleCategory(cat.id)} title={cat.isActive === false ? 'Activate category' : 'Deactivate category'}><Power className="h-4 w-4" /></Button>
                                 </li>
                             )
                         })}
