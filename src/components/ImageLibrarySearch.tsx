@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/firebase';
-import { getIdToken } from 'firebase/auth';
 
 interface Result { id: string; previewUrl: string; imageUrl: string; width: number; height: number; alt: string; creatorName: string; creatorUrl?: string; sourceUrl: string; provider: string; attribution: string; }
 
@@ -29,7 +28,7 @@ export function ImageLibrarySearch() {
     const id = ++requestId.current;
     setLoading(true); setMessage(''); setPage(1);
     try {
-      const token = await getIdToken(user, true);
+      const token = await user.getIdToken(true);
       const response = await fetch(`/api/images/search?q=${encodeURIComponent(normalized)}&page=1`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       if (id !== requestId.current) return;
@@ -41,7 +40,7 @@ export function ImageLibrarySearch() {
 
   async function saveImage() {
     if (!selected || !user) return;
-    const token = await getIdToken(user, true);
+    const token = await user.getIdToken(true);
     const response = await fetch('/api/images/save', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(selected) });
     const data = await response.json();
     setMessage(response.ok ? 'Image saved to Saved Images.' : data.error || 'Could not save image.');
@@ -51,7 +50,7 @@ export function ImageLibrarySearch() {
     if (!user || loading || !results.length) return;
     setLoading(true);
     try {
-      const token = await getIdToken(user, true);
+      const token = await user.getIdToken(true);
       const nextPage = page + 1;
       const response = await fetch(`/api/images/search?q=${encodeURIComponent(query.trim())}&page=${nextPage}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
