@@ -249,18 +249,21 @@ export default function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Manage Categories</h1>
           <p className="text-muted-foreground">Add, edit, delete, enable, and disable categories and subcategories.</p>
         </div>
+        <Button type="button" onClick={resetForm} disabled={saving} className="w-full md:w-auto">
+          <PlusCircle className="mr-2 h-4 w-4" /> Add main category
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>{editingId ? "Edit category" : "Add category"}</CardTitle>
-            <CardDescription>{editingId ? "Update the current category or subcategory." : "Create a new main category or a child subcategory."}</CardDescription>
+            <CardDescription>{editingId ? "Update the current category or subcategory." : selectedParentId === "none" ? "Create a new parent category." : "Create a subcategory under the selected parent."}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -311,7 +314,7 @@ export default function AdminCategoriesPage() {
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1" disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                  {editingId ? "Save changes" : "Add category"}
+                  {editingId ? "Save changes" : selectedParentId === "none" ? "Add main category" : "Add subcategory"}
                 </Button>
                 {editingId && (
                   <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
