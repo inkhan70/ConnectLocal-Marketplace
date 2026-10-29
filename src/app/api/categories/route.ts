@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAdminDb, classifyError } from '@/lib/server/firebase-admin';
+import { classifyError } from '@/lib/server/firebase-admin';
 import { makeCategorySlug, normalizeCategoryName, type CategoryItem } from '@/lib/category-management';
+import { readRealtimeCategories } from '@/lib/server/category-rtdb';
 
 export const runtime = 'nodejs';
 export const revalidate = 60;
 
 export async function GET() {
   try {
-    const snapshot = await getAdminDb().collection('app_config').doc('categories').get();
-    const raw = snapshot.data()?.list;
-    const list = (Array.isArray(raw) ? raw : [])
+    const list = (await readRealtimeCategories())
       .map((item: CategoryItem) => ({
         ...item,
         name: normalizeCategoryName(item.name),

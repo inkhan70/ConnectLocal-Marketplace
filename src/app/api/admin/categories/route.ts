@@ -1,34 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb, requireAdmin, classifyError } from '@/lib/server/firebase-admin';
 import { makeCategorySlug, normalizeCategoryName, validateCategoryPayload, type CategoryItem } from '@/lib/category-management';
+import { readRealtimeCategories, writeRealtimeCategories } from '@/lib/server/category-rtdb';
 
 export const runtime = 'nodejs';
 
 const CATEGORIES_DOCUMENT_ID = 'categories';
 
 async function getCategoryDocument() {
-  const db = getAdminDb();
-  const ref = db.collection('app_config').doc(CATEGORIES_DOCUMENT_ID);
-  const snap = await ref.get();
-  const list = Array.isArray(snap.data()?.list) ? snap.data()?.list : [];
-  return { ref, list: list as CategoryItem[] };
+  return { list: await readRealtimeCategories() };
 }
 
 async function persistCategories(list: CategoryItem[]) {
-  const db = getAdminDb();
-  const ref = db.collection('app_config').doc(CATEGORIES_DOCUMENT_ID);
-  await ref.set(
-    {
-      list: list.map((item) => ({
-        ...item,
-        parentId: item.parentId || null,
-        isActive: item.isActive !== false,
-        slug: item.slug || makeCategorySlug(item.name),
-      })),
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  await writeRealtimeCategories(list.map((item) => ({ ...item, parentId: item.parentId || null, isActive: item.isActive !== false, slug: item.slug || makeCategorySlug(item.name) })));
 }
 
 async function hasCategoryReferences(db: ReturnType<typeof getAdminDb>, categoryName: string, categoryId?: string, parentId?: string | null) {

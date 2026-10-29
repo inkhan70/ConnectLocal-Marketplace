@@ -1,0 +1,31 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "categories": {
+      ".read": true,
+      ".indexOn": ["enabled", "sortOrder"],
+      "$categoryId": {
+        ".write": "auth != null && auth.token.role == 'admin'",
+        ".validate": "newData.hasChildren(['name', 'slug', 'enabled', 'sortOrder'])",
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+        "slug": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100" },
+        "icon": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)" },
+        "enabled": { ".validate": "newData.isBoolean()" },
+        "isActive": { ".validate": "!newData.exists() || newData.isBoolean()" },
+        "sortOrder": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "parentId": { ".validate": "!newData.exists() || newData.isString()" },
+        "updatedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "subcategories": { ".read": true, "$categoryId": { ".write": "auth != null && auth.token.role == 'admin'", ".indexOn": ["enabled", "sortOrder"], "$subcategoryId": { ".validate": "newData.hasChildren(['name', 'enabled', 'sortOrder'])" } } },
+    "producers": { "$uid": { ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'admin')", ".write": "auth != null && auth.uid == $uid && auth.token.role == 'producer'" } },
+    "users": { "$uid": { ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'admin')", ".write": "auth != null && auth.uid == $uid" } },
+    "businesses": { "$businessId": { ".read": true, ".write": "auth != null && (root.child('businessOwners').child($businessId).val() == auth.uid || auth.token.role == 'admin')" } },
+    "businessOwners": { ".read": false, ".write": false },
+    "products": { "$productId": { ".read": true, ".write": "auth != null && (root.child('productOwners').child($productId).val() == auth.uid || auth.token.role == 'admin')" } },
+    "productOwners": { ".read": false, ".write": false },
+    "orders": { "$orderId": { ".read": "auth != null && (data.child('buyerId').val() == auth.uid || data.child('sellerId').val() == auth.uid || auth.token.role == 'admin')", ".write": false } }
+  }
+}

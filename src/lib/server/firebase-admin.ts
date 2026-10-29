@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
+import { getDatabase, Database } from 'firebase-admin/database';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 
@@ -72,6 +73,7 @@ function getAdminApp(): App {
     // Always the service account's own project (an unrelated NEXT_PUBLIC_FIREBASE_PROJECT_ID must not override it).
     projectId: accountProject || webProject,
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+    databaseURL: process.env.FIREBASE_DATABASE_URL || firebaseConfig.databaseURL,
   });
   return adminApp;
 }
@@ -140,6 +142,10 @@ export async function requireAdmin(request: Request): Promise<DecodedIdToken> {
 
 export function getAdminStorage(): Storage {
   return getStorage(getAdminApp());
+}
+
+export function getAdminRealtimeDb(): Database {
+  return getDatabase(getAdminApp());
 }
 
 type ClassifiedError = { status: number; code: string; message: string; opaque?: boolean };

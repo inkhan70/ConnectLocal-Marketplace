@@ -12,6 +12,8 @@ import { useIsAdmin } from '@/hooks/use-is-admin';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { CategoryItem } from '@/lib/category-management';
+import { database } from '@/firebase';
+import { onValue, ref } from 'firebase/database';
 
 const iconMap: { [key: string]: React.ElementType } = {
   UtensilsCrossed, GlassWater, Laptop, Pill, Footprints, Scissors, Gem, Building, MoreHorizontal, Shirt, Home, Car, Wrench, Bone
@@ -44,6 +46,14 @@ export default function CategoriesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    const categoryRef = ref(database, 'categories');
+    const unsubscribe = onValue(categoryRef, (snapshot) => {
+      const value = snapshot.val() as Record<string, any> | null;
+      if (!value) return;
+      const live = Object.entries(value).map(([id, item]) => ({ id, ...item, order: Number(item.sortOrder ?? item.order ?? 0), isActive: item.enabled !== false && item.isActive !== false, parentId: item.parentId || null } as CategoryItem)).filter((item) => item.isActive !== false);
+      if (live.length) setCategories(live.sort((a, b) => a.order - b.order));
+    });
+
     const loadCategories = async () => {
       try {
         const response = await fetch('/api/categories', { headers: { 'Content-Type': 'application/json' } });
@@ -61,6 +71,7 @@ export default function CategoriesPage() {
     };
 
     void loadCategories();
+    return unsubscribe;
   }, []);
 
   const topLevelCategories = useMemo(
