@@ -356,15 +356,15 @@ export default function AdminCategoriesPage() {
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => void handleReorder(category, -1)} disabled={saving} aria-label={`Move ${category.name} up`}><ChevronUp className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => void handleReorder(category, 1)} disabled={saving} aria-label={`Move ${category.name} down`}><ChevronDown className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => startEditing(category)} disabled={saving}>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void handleReorder(category, -1)} disabled={saving} aria-label={`Move ${category.name} up`}><ChevronUp className="h-4 w-4" /></Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void handleReorder(category, 1)} disabled={saving} aria-label={`Move ${category.name} down`}><ChevronDown className="h-4 w-4" /></Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => startEditing(category)} disabled={saving}>
                               <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                             </Button>
-                            <Button variant={category.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(category)} disabled={saving}>
+                            <Button type="button" variant={category.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(category)} disabled={saving}>
                               <Power className="mr-1 h-3.5 w-3.5" /> {category.isActive === false ? "Enable" : "Disable"}
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(category)} disabled={saving}>
+                            <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteTarget(category)} disabled={saving}>
                               <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                             </Button>
                           </div>
@@ -381,15 +381,15 @@ export default function AdminCategoriesPage() {
                                   <p className="text-xs text-muted-foreground">{subcategory.isActive === false ? "Inactive" : "Active"} · Subcategory</p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
-                                  <Button variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, -1)} disabled={saving} aria-label={`Move ${subcategory.name} up`}><ChevronUp className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, 1)} disabled={saving} aria-label={`Move ${subcategory.name} down`}><ChevronDown className="h-4 w-4" /></Button>
-                                  <Button variant="outline" size="sm" onClick={() => startEditing(subcategory)} disabled={saving}>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, -1)} disabled={saving} aria-label={`Move ${subcategory.name} up`}><ChevronUp className="h-4 w-4" /></Button>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, 1)} disabled={saving} aria-label={`Move ${subcategory.name} down`}><ChevronDown className="h-4 w-4" /></Button>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => startEditing(subcategory)} disabled={saving}>
                                     <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                                   </Button>
-                                  <Button variant={subcategory.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(subcategory)} disabled={saving}>
+                                  <Button type="button" variant={subcategory.isActive === false ? "secondary" : "outline"} size="sm" onClick={() => void handleToggle(subcategory)} disabled={saving}>
                                     <Power className="mr-1 h-3.5 w-3.5" /> {subcategory.isActive === false ? "Enable" : "Disable"}
                                   </Button>
-                                  <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(subcategory)} disabled={saving}>
+                                  <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteTarget(subcategory)} disabled={saving}>
                                     <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                                   </Button>
                                 </div>
