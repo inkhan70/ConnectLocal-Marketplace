@@ -72,7 +72,8 @@ function SearchResultsContent() {
     const productResults = (products || []).filter((product) => {
       const searchable = [product.name, product.description, product.category, product.businessName]
         .filter(Boolean).join(" ").toLocaleLowerCase();
-      if (normalizedTerm && !searchable.includes(normalizedTerm)) return false;
+      const terms = normalizedTerm.split(/\s+/).filter(Boolean);
+      if (terms.length && !terms.every((term) => searchable.includes(term))) return false;
       const prices = product.varieties?.map((item) => Number(item.price)).filter(Number.isFinite) || [];
       const price = prices.length ? Math.min(...prices) : null;
       return (Number.isNaN(minPrice) || (price !== null && price >= minPrice)) &&
@@ -82,7 +83,8 @@ function SearchResultsContent() {
     const businessResults = (businesses || []).filter((business) => {
       const searchable = [business.businessName, business.fullName, business.category, business.subcategoryId, business.subcategoryName, business.city, business.state]
         .filter(Boolean).join(" ").toLocaleLowerCase();
-      return (!normalizedTerm || searchable.includes(normalizedTerm)) &&
+      const terms = normalizedTerm.split(/\s+/).filter(Boolean);
+      return (!terms.length || terms.every((term) => searchable.includes(term))) &&
         (!city || String(business.city || "").toLocaleLowerCase() === city.toLocaleLowerCase());
     }).map((business) => {
       if (!userLocation) return { type: "business" as const, data: business };
@@ -114,7 +116,9 @@ function SearchResultsContent() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{results.map((result, index) => {
           if (result.type === "product") return <Card key={`product-${result.data.id || index}`}><CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" />{result.data.name || "Unnamed product"}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{result.data.description || "Product available from a local business."}</p></CardContent></Card>;
           const label = result.data.subcategoryName || result.data.category || result.data.role || "Business";
-          return <Link key={`business-${result.data.uid || index}`} href={`/businesses/${encodeURIComponent(result.data.uid)}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><Card className="h-full transition-colors hover:border-primary"><CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" />{result.data.businessName || result.data.fullName || "Business"}</CardTitle></CardHeader><CardContent className="space-y-2"><Badge variant="secondary">{label}</Badge><p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{[result.data.city, result.data.state].filter(Boolean).join(", ") || "Location unavailable"}</p>{result.data.distance !== undefined && <p className="text-sm text-muted-foreground">{result.data.distance.toFixed(1)} km away</p>}</CardContent></Card></Link>;
+          const businessId = result.data.uid;
+          const businessCard = <Card className="h-full transition-colors hover:border-primary"><CardHeader><CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" />{result.data.businessName || result.data.fullName || "Business"}</CardTitle></CardHeader><CardContent className="space-y-2"><Badge variant="secondary">{label}</Badge><p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{[result.data.city, result.data.state].filter(Boolean).join(", ") || "Location unavailable"}</p>{result.data.distance !== undefined && <p className="text-sm text-muted-foreground">{result.data.distance.toFixed(1)} km away</p>}</CardContent></Card>;
+          return businessId ? <Link key={`business-${businessId}`} href={`/businesses/${encodeURIComponent(businessId)}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{businessCard}</Link> : <div key={`business-${index}`}>{businessCard}</div>;
         })}</div>}
     </main>
   );

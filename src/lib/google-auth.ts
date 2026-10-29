@@ -41,6 +41,13 @@ export async function ensureGoogleUserProfile(
     throw error;
   }
   await user.getIdToken(true);
+  // Firestore listeners can observe the auth event before the server-created profile is readable.
+  // Wait briefly for the profile so the first redirect does not land on an empty dashboard.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const profile = await getDoc(doc(firestore, "users", user.uid));
+    if (profile.exists() && profile.data()?.role) break;
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
   const tokenResult = await (user as any).getIdTokenResult(true);
   const claimIsAdmin = tokenResult.claims.role === "admin" || tokenResult.claims.isAdmin === true;
   return { isAdmin: claimIsAdmin || outcome.isAdmin, needsRoleSelection: outcome.needsRoleSelection };

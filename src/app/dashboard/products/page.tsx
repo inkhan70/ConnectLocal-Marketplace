@@ -267,6 +267,8 @@ export default function ProductForm() {
                 });
             }
             reader.readAsDataURL(file);
+            // Allow selecting the same file again after replacing/removing it.
+            e.currentTarget.value = "";
         }
     };
     
@@ -673,5 +675,3 @@ export default function ProductForm() {
         </div>
     );
 }
-
-    
