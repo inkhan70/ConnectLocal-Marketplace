@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { PlusCircle, Download, AlertTriangle, Loader2 } from "lucide-react";
@@ -99,7 +98,7 @@ export default function ProductImagesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {imageLibrary.map((image) => (
             <Card key={image.id} className="overflow-hidden group">
-              <CardContent className="p-0"><Image src={image.src} alt={image.alt} width={400} height={300} className="object-cover w-full h-48" /></CardContent>
+              <CardContent className="p-0"><img src={image.src} alt={image.alt} width={400} height={300} loading="lazy" referrerPolicy="no-referrer" className="object-cover w-full h-48" /></CardContent>
               <CardFooter className="p-2 bg-secondary/50 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground truncate">{image.alt}</span>
                 <Button variant="outline" size="sm" onClick={() => handleDownload(image.src)}><Download className="mr-2 h-4 w-4" /> Download</Button>

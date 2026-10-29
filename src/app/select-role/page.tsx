@@ -2,9 +2,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFirestore, useAuth as useFirebaseAuth } from "@/firebase";
+import { useFirestore, useAuth as useFirebaseAuth, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 import { bootstrapUserProfile } from "@/lib/bootstrap-client";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -22,6 +23,10 @@ import {
 
 // "doctor" is not a stored role: it is saved as a service provider with the
 // health_doctor subcategory so the correct dashboard is shown.
+type CategoryRecord = { id: string; name: string; parentId?: string; isActive?: boolean; order?: number };
+
+type CategoriesConfig = { list?: CategoryRecord[] };
+
 const BUSINESS_ROLES = [
   { id: "buyer", label: "Buyer / Customer", description: "Shop and purchase products" },
   { id: "company", label: "Producer / Company", description: "Produce and sell products" },
@@ -39,6 +44,8 @@ function SelectRoleContent() {
   const { user, userProfile, loading } = useAuth();
   const firestore = useFirestore();
   const firebaseAuth = useFirebaseAuth();
+  const categoriesRef = useMemoFirebase(() => doc(firestore, "app_config", "categories"), [firestore]);
+  const { data: categoriesConfig } = useDoc<CategoriesConfig>(categoriesRef);
   const { toast } = useToast();
   const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -48,6 +55,11 @@ function SelectRoleContent() {
   const [categoryKey, setCategoryKey] = useState<string>("");
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
+
+  const activeCategories = useMemo(() => (categoriesConfig?.list || []).filter((item) => item.isActive !== false), [categoriesConfig]);
+  const categoryChoices = useMemo(() => activeCategories.filter((item) => !item.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [activeCategories]);
+  const dynamicSubcategories = useMemo(() => activeCategories.filter((item) => item.parentId === categoryKey).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [activeCategories, categoryKey]);
+  const availableSubcategories = dynamicSubcategories.length ? dynamicSubcategories : (subcategoriesMap[categoryKey] || []).map((item) => ({ id: item.id, name: item.name }));
 
   const finished = useRef(false);
   const healing = useRef(false);
@@ -206,8 +218,8 @@ function SelectRoleContent() {
                 <Select value={categoryKey} onValueChange={(v) => { setCategoryKey(v); setSubcategoryId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
                   <SelectContent>
-                    {Object.keys(subcategoriesMap).map((key) => (
-                      <SelectItem key={key} value={key}>{CATEGORY_LABELS[key] || key}</SelectItem>
+                    {(categoryChoices.length ? categoryChoices : Object.keys(subcategoriesMap).map((key) => ({ id: key, name: CATEGORY_LABELS[key] || key }))).map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -216,7 +228,7 @@ function SelectRoleContent() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Business type</label>
                   <div className="grid md:grid-cols-2 gap-3">
-                    {(subcategoriesMap[categoryKey] || []).map((sub) => (
+                    {availableSubcategories.map((sub) => (
                       <button
                         key={sub.id}
                         onClick={() => setSubcategoryId(sub.id)}

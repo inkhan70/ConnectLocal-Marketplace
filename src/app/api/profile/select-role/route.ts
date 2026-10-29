@@ -31,7 +31,19 @@ export async function POST(request: Request) {
     if (needsBusinessType) {
       const subcategoryId = typeof body.subcategoryId === 'string' ? body.subcategoryId : '';
       chosen = findSubcategory(subcategoryId);
-      if (!chosen) return NextResponse.json({ error: 'Please choose your business type.' }, { status: 400 });
+      if (!chosen) {
+        const categoryConfig = await getAdminDb().collection('app_config').doc('categories').get();
+        const categories = Array.isArray(categoryConfig.data()?.list) ? categoryConfig.data()?.list : [];
+        const child = categories.find((item: any) => item.id === subcategoryId && item.parentId);
+        const parent = child ? categories.find((item: any) => item.id === child.parentId) : null;
+        if (child && parent) {
+          chosen = {
+            categoryKey: parent.id || parent.name,
+            option: { id: child.id, name: child.name, role: config.storedRole as any, dashboardType: config.dashboardType },
+          } as any;
+        }
+      }
+      if (!chosen) return NextResponse.json({ error: 'Please choose a business type.' }, { status: 400 });
       if (!businessName) return NextResponse.json({ error: 'Please enter your business name.' }, { status: 400 });
     }
 
