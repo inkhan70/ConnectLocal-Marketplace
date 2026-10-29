@@ -1,5 +1,7 @@
-// Subcategories for each main category
-// Maps main category -> list of business types with their dashboard requirements
+// Dynamic subcategories for each current marketplace category.
+// Legacy role values remain supported for dashboard compatibility; admin privileges are unchanged.
+import { createDefaultCategoryTaxonomy } from './category-taxonomy';
+
 
 export interface SubcategoryOption {
   id: string;
@@ -8,7 +10,7 @@ export interface SubcategoryOption {
   dashboardType: string; // Type of dashboard layout to use
 }
 
-export const subcategoriesMap: Record<string, SubcategoryOption[]> = {
+const legacySubcategoriesMap: Record<string, SubcategoryOption[]> = {
   // Medical & Healthcare
   medical: [
     {
@@ -373,6 +375,34 @@ export const subcategoriesMap: Record<string, SubcategoryOption[]> = {
     },
   ],
 };
+
+const roleForName = (name: string): SubcategoryOption['role'] => {
+  const value = name.toLowerCase();
+  if (/service|repair|agency|consult|management|clinic|hospital|pharmacy|veterinary|salon|spa|lapidary|tailor|restaurant|cafe|cater/.test(value)) return 'services';
+  if (/distributor/.test(value)) return 'distributor';
+  if (/wholesale/.test(value)) return 'wholesaler';
+  if (/broker/.test(value)) return 'company';
+  if (/retail|shop|store/.test(value)) return 'shopkeeper';
+  return 'company';
+};
+
+export const subcategoriesMap: Record<string, SubcategoryOption[]> = (() => {
+  const taxonomy = createDefaultCategoryTaxonomy();
+  const result: Record<string, SubcategoryOption[]> = {};
+  for (const item of taxonomy.filter((entry) => entry.parentId)) {
+    const parent = taxonomy.find((entry) => entry.id === item.parentId);
+    const categoryKey = parent?.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'services';
+    (result[categoryKey] ||= []).push({ id: item.id, name: item.name, role: roleForName(item.name), dashboardType: categoryKey });
+  }
+  return result;
+})();
+
+// Preserve legacy lookups only when an administrator has not yet seeded the new taxonomy.
+for (const [key, options] of Object.entries(legacySubcategoriesMap)) {
+  if (!subcategoriesMap[key]?.length) subcategoriesMap[key] = options;
+}
+subcategoriesMap.jewelry = subcategoriesMap['jewelry-gemstones'];
+subcategoriesMap['home-&-garden'] = subcategoriesMap['home-garden'];
 
 // Get subcategories for a category
 export function getSubcategoriesForCategory(
