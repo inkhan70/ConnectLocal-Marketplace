@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, MoreHorizontal, Pencil, PlusCircle, Power, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, MoreHorizontal, Pencil, PlusCircle, Power, Trash2 } from "lucide-react";
 import { makeCategorySlug, normalizeCategoryName, type CategoryItem } from "@/lib/category-management";
 
 const iconChoices = [
@@ -174,6 +174,21 @@ export default function AdminCategoriesPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleReorder = async (category: CategoryItem, direction: -1 | 1) => {
+    const siblings = categories.filter((item) => (item.parentId || null) === (category.parentId || null)).sort((a, b) => a.order - b.order);
+    const index = siblings.findIndex((item) => item.id === category.id);
+    const target = siblings[index + direction];
+    if (!target) return;
+    try {
+      setSaving(true);
+      await Promise.all([
+        authenticatedRequest('PUT', { id: category.id, name: category.name, icon: category.icon, slug: category.slug, parentId: category.parentId || null, isActive: category.isActive !== false, order: target.order }),
+        authenticatedRequest('PUT', { id: target.id, name: target.name, icon: target.icon, slug: target.slug, parentId: target.parentId || null, isActive: target.isActive !== false, order: category.order }),
+      ]);
+      await fetchCategories();
+    } catch (error: any) { toast({ title: 'Reorder failed', description: error.message || 'Could not reorder category.', variant: 'destructive' }); } finally { setSaving(false); }
   };
 
   const handleToggle = async (category: CategoryItem) => {
@@ -341,6 +356,8 @@ export default function AdminCategoriesPage() {
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => void handleReorder(category, -1)} disabled={saving} aria-label={`Move ${category.name} up`}><ChevronUp className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => void handleReorder(category, 1)} disabled={saving} aria-label={`Move ${category.name} down`}><ChevronDown className="h-4 w-4" /></Button>
                             <Button variant="outline" size="sm" onClick={() => startEditing(category)} disabled={saving}>
                               <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                             </Button>
@@ -364,6 +381,8 @@ export default function AdminCategoriesPage() {
                                   <p className="text-xs text-muted-foreground">{subcategory.isActive === false ? "Inactive" : "Active"} · Subcategory</p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
+                                  <Button variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, -1)} disabled={saving} aria-label={`Move ${subcategory.name} up`}><ChevronUp className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, 1)} disabled={saving} aria-label={`Move ${subcategory.name} down`}><ChevronDown className="h-4 w-4" /></Button>
                                   <Button variant="outline" size="sm" onClick={() => startEditing(subcategory)} disabled={saving}>
                                     <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
                                   </Button>
