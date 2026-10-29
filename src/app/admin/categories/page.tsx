@@ -64,6 +64,7 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState<string>("none");
+  const [formMode, setFormMode] = useState<"parent" | "subcategory">("parent");
   const [formName, setFormName] = useState("");
   const [formIcon, setFormIcon] = useState(defaultIcon);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -132,6 +133,7 @@ export default function AdminCategoriesPage() {
     setFormName("");
     setFormIcon(defaultIcon);
     setSelectedParentId("none");
+    setFormMode("parent");
     setEditingId(null);
   };
 
@@ -140,12 +142,17 @@ export default function AdminCategoriesPage() {
     setFormName(category.name);
     setFormIcon(category.icon || defaultIcon);
     setSelectedParentId(category.parentId || "none");
+    setFormMode(category.parentId ? "subcategory" : "parent");
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!formName.trim()) {
       toast({ title: "Missing name", description: "Please enter a category name.", variant: "destructive" });
+      return;
+    }
+    if (!editingId && formMode === "subcategory" && selectedParentId === "none") {
+      toast({ title: "Choose a parent", description: "Select an existing parent category before adding a subcategory.", variant: "destructive" });
       return;
     }
 
@@ -156,7 +163,7 @@ export default function AdminCategoriesPage() {
         name: normalizeCategoryName(formName),
         icon: formIcon || defaultIcon,
         slug: makeCategorySlug(formName),
-        parentId: selectedParentId === "none" ? null : selectedParentId,
+        parentId: formMode === "parent" ? null : selectedParentId === "none" ? null : selectedParentId,
         isActive: true,
       };
 
@@ -254,16 +261,21 @@ export default function AdminCategoriesPage() {
           <h1 className="text-2xl font-bold">Manage Categories</h1>
           <p className="text-muted-foreground">Add, edit, delete, enable, and disable categories and subcategories.</p>
         </div>
-        <Button type="button" onClick={resetForm} disabled={saving} className="w-full md:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" /> Add main category
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+          <Button type="button" variant="outline" onClick={() => { resetForm(); setFormMode("subcategory"); }} disabled={saving} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" /> Add subcategory
+          </Button>
+          <Button type="button" onClick={() => { resetForm(); setFormMode("parent"); }} disabled={saving} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" /> Add parent category
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle>{editingId ? "Edit category" : "Add category"}</CardTitle>
-            <CardDescription>{editingId ? "Update the current category or subcategory." : selectedParentId === "none" ? "Create a new parent category." : "Create a subcategory under the selected parent."}</CardDescription>
+            <CardTitle>{editingId ? "Edit category" : formMode === "parent" ? "Add parent category" : "Add subcategory"}</CardTitle>
+            <CardDescription>{editingId ? "Update the current category or subcategory." : formMode === "parent" ? "Create a new top-level category." : "Create a subcategory under an existing parent."}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -278,22 +290,24 @@ export default function AdminCategoriesPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category-parent">Parent category</Label>
-                <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={saving}>
-                  <SelectTrigger id="category-parent">
-                    <SelectValue placeholder="Main category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Main category (no parent)</SelectItem>
-                    {parentOptions.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {formMode === "subcategory" && (
+                <div className="space-y-2">
+                  <Label htmlFor="category-parent">Parent category</Label>
+                  <Select value={selectedParentId === "none" ? undefined : selectedParentId} onValueChange={(value) => { setSelectedParentId(value); setFormMode("subcategory"); }} disabled={saving}>
+                    <SelectTrigger id="category-parent">
+                      <SelectValue placeholder="Select a parent category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parentOptions.filter((category) => category.id !== editingId).map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Choose the parent this subcategory belongs to.</p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="category-icon">Icon</Label>
@@ -314,7 +328,7 @@ export default function AdminCategoriesPage() {
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1" disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                  {editingId ? "Save changes" : selectedParentId === "none" ? "Add main category" : "Add subcategory"}
+                  {editingId ? "Save changes" : formMode === "parent" ? "Add parent category" : "Add subcategory"}
                 </Button>
                 {editingId && (
                   <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
@@ -410,6 +424,7 @@ export default function AdminCategoriesPage() {
                                 setFormName("");
                                 setFormIcon(defaultIcon);
                                 setSelectedParentId(category.id);
+                                setFormMode("subcategory");
                               }}
                               disabled={saving}
                             >
