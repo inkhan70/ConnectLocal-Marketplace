@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request);
     const body = await request.json().catch(() => ({}));
-    const { ref, list } = await getCategoryDocument();
+    const { list } = await getCategoryDocument();
     const validation = validateCategoryPayload({
       id: body.id,
       name: body.name,
