@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!isPaymentMethodEnabled(method)) return jsonError('This payment method is not available right now. Please choose another one.', 503);
     const transaction = await createPendingTransaction(db, {
       orderId: snap.id,
-      buyerId: access.kind === 'user' ? access.uid : undefined,
+      buyerId: access.kind === 'buyer' ? access.uid : undefined,
       sellerId: String(order.sellerId || order.businessId || order.memberId || ''),
       provider: method,
       country: String(order.country || 'US').toUpperCase(),
