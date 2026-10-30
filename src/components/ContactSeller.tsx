@@ -63,6 +63,12 @@ export function ContactSeller({ seller, message, targetMemberId, fallback, hideW
 
   return (
     <div className={`flex flex-wrap gap-2 ${className || ""}`}>
+      {targetMemberId && (
+        <Button type="button" size={size} onClick={startConnectLocalChat} disabled={startingChat} aria-label="Message on ConnectLocal">
+          {startingChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+          {startingChat ? "Opening…" : "Message"}
+        </Button>
+      )}
       {whatsapp && (
         <Button asChild size={size} className="bg-[#25D366] text-white hover:bg-[#1ebe5b]">
           <a href={whatsappUrl(whatsapp, text)} target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp">
