@@ -150,8 +150,11 @@ service cloud.firestore {
       }
       allow get, list: if chatParticipant();
       // Participants may update the preview fields but can never change who is in the conversation.
-      allow update: if chatParticipant() && request.resource.data.participants == resource.data.participants;
-      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if chatParticipant()
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageTimestamp', 'unreadCounts']);
+      // Conversations are created only by the server transaction, which derives both participants from verified auth.
+      allow create: if false;
 
       match /messages/{messageId} {
         allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;

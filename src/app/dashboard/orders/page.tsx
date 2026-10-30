@@ -26,7 +26,7 @@ const label = (status: string) => status.replaceAll('_', ' ');
 /** Buyer -> seller: WhatsApp / call the seller about this order (seller's published number). */
 function ContactSellerForOrder({ order }: { order: Order }) {
   const { data: seller } = usePublicBusiness(order.businessId);
-  return <ContactSeller size="sm" hideWhenEmpty seller={seller} message={`Hello ${seller?.businessName || ''}, I have a question about my ConnectLocal order ${order.id.slice(0, 8)}.`} />;
+  return <ContactSeller size="sm" hideWhenEmpty seller={seller} targetMemberId={order.businessId} message={`Hello ${seller?.businessName || ''}, I have a question about my ConnectLocal order ${order.id.slice(0, 8)}.`} />;
 }
 
 export default function OrdersPage() {

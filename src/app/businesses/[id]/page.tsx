@@ -138,6 +138,7 @@ export default function BusinessProfilePage() {
               {(!user || user.uid !== profile.uid) && (
                 <ContactSeller
                   seller={profile}
+                  targetMemberId={profile.uid}
                   message={`Hello ${profile.businessName || ''}, I found your business on ConnectLocal and would like to know more.`}
                   fallback={user ? { label: "Message", onClick: handleStartChat } : undefined}
                 />
