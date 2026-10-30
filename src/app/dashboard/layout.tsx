@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BusinessShareCard } from "@/components/BusinessShareCard";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, LayoutDashboard, Settings, MessageSquare, Bell, UserCircle, Image as ImageIconLucide, LogOut, Loader2 } from "lucide-react";
+import { ShoppingBag, LayoutDashboard, Settings, MessageSquare, Bell, UserCircle, Image as ImageIconLucide, LogOut, Loader2, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuth as useFirebaseAuth } from "@/firebase";
@@ -45,6 +45,11 @@ const businessSidebarNavItems = [
         href: "/dashboard/settings",
         icon: Settings,
     },
+    {
+        title: "Payments",
+        href: "/dashboard/payment-settings",
+        icon: CreditCard,
+    },
 ];
 
 const buyerSidebarNavItems = [
@@ -63,12 +68,18 @@ const buyerSidebarNavItems = [
         href: "/dashboard/chat",
         icon: MessageSquare,
     },
-    {
+     {
         title: "Settings",
         href: "/dashboard/settings",
         icon: Settings,
     },
+    {
+        title: "Payments",
+        href: "/dashboard/payment-settings",
+        icon: CreditCard,
+    },
 ]
+
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
