@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, MapPin, Navigation, Stethoscope, Store, Heart, MessageSquare } from "lucide-react";
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { usePublicBusiness } from "@/hooks/use-public-business";
 import { ContactSeller } from "@/components/ContactSeller";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,11 @@ export default function BusinessProfilePage() {
   const { addFavorite, removeFavorite, isFavorite, recordContact } = useFavorites();
   const { data: publicProfile, isLoading } = usePublicBusiness(params?.id);
   const profile = publicProfile as UserProfile | null;
+  const productsQuery = useMemoFirebase(
+    () => profile?.uid ? query(collection(firestore, "products"), where("userId", "==", profile.uid)) : null,
+    [firestore, profile?.uid],
+  );
+  const { data: products, isLoading: productsLoading } = useCollection<any>(productsQuery);
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-16 text-center">Loading profile…</div>;
@@ -143,6 +148,27 @@ export default function BusinessProfilePage() {
         <CardContent className="space-y-5">
           <Image src={profile.storefrontWallpaper || images.businesses.corner_store} alt={`${profile.businessName || profile.fullName || "Provider"} storefront`} width={900} height={360} className="h-56 w-full rounded-lg object-cover" />
           {profile.businessDescription && <p>{profile.businessDescription}</p>}
+          <div className="rounded-lg border bg-muted/30 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Storefront products</h2>
+                <p className="text-sm text-muted-foreground">Browse products published by this business.</p>
+              </div>
+              <Button asChild>
+                <Link href={`/products/distributor/${encodeURIComponent(profile.uid)}`}>View storefront</Link>
+              </Button>
+            </div>
+            {productsLoading ? <p className="mt-4 text-sm text-muted-foreground">Loading products…</p> : products?.length ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {products.slice(0, 4).map((product: any) => (
+                  <Link key={product.id} href={`/products/item/${encodeURIComponent(product.id)}`} className="rounded-md border bg-background p-3 transition-colors hover:border-primary">
+                    <p className="font-medium">{product.name || "Product"}</p>
+                    {product.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{product.description}</p>}
+                  </Link>
+                ))}
+              </div>
+            ) : <p className="mt-4 text-sm text-muted-foreground">This business has not published products yet.</p>}
+          </div>
           <div className="flex items-start gap-2 text-muted-foreground">
             <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
             <span>{[profile.address, profile.city, profile.state].filter(Boolean).join(", ") || "Location unavailable"}</span>
