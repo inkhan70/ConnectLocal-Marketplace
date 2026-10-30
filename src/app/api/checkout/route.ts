@@ -4,6 +4,7 @@ import { requireOrderBuyer } from '@/lib/server/order-secrets';
 import { isPaymentMethodEnabled } from '@/lib/server/payment-config';
 import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAppUrl } from '@/lib/server/app-url';
+import { createPendingTransaction } from '@/lib/server/payment-ledger';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +39,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isPaymentMethodEnabled(method)) return jsonError('This payment method is not available right now. Please choose another one.', 503);
+    const transaction = await createPendingTransaction(db, {
+      orderId: snap.id,
+      buyerId: access.kind === 'user' ? access.uid : undefined,
+      sellerId: String(order.sellerId || order.businessId || order.memberId || ''),
+      provider: method,
+      country: String(order.country || 'US').toUpperCase(),
+      currency,
+      amountMinor: Math.round(total * 100),
+      platformFeeMinor: Math.max(0, Math.round(Number(order.platformFee || 0) * 100)),
+      idempotencyKey: `order_${snap.id}_${method}`,
+    });
+    await ref.update({ paymentTransactionId: transaction.id, updatedAt: new Date() });
     const appUrl = getAppUrl(request);
     if (method === 'stripe') return createStripePayment(ref, order, snap.id, appUrl, returnPath);
     if (method === 'paypal') return createPayPalPayment(ref, order, snap.id, appUrl, returnPath);
