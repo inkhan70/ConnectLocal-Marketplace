@@ -311,8 +311,9 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
                   <div className="mt-3">
                     <p className="mb-2 text-sm text-muted-foreground">Questions about this item? Contact the seller directly:</p>
                     <ContactSeller
-                      seller={sellerProfile}
-                      message={`Hello, I am interested in "${product.name}" on ConnectLocal${typeof window !== 'undefined' ? ` (${window.location.href})` : ''}. Is it available?`}
+  seller={sellerProfile}
+  targetMemberId={product.userId}
+  message={`Hello, I am interested in "${product.name}" on ConnectLocal${typeof window !== 'undefined' ? ` (${window.location.href})` : ''}. Is it available?`}
                       fallback={user ? { label: "Chat with seller", onClick: handleStartChat } : undefined}
                     />
                   </div>

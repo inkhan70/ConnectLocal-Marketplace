@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Send, MessageSquare, Users, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, setDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -33,6 +33,7 @@ interface Chat {
     };
     lastMessage: string;
     lastMessageTimestamp: any;
+    unreadCounts?: Record<string, number>;
 }
 
 function ChatPage() {
@@ -90,25 +91,26 @@ function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    useEffect(() => {
+        if (activeChat && user && (activeChat.unreadCounts?.[user.uid] || 0) > 0) {
+            setDoc(doc(firestore, 'chats', activeChat.id), { [`unreadCounts.${user.uid}`]: 0 }, { merge: true }).catch(() => undefined);
+        }
+    }, [activeChat?.id, user?.uid, firestore]);
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !activeChat || !user) return;
 
         setIsSending(true);
         try {
-            const messagesColRef = collection(firestore, 'chats', activeChat.id, 'messages');
-            await addDoc(messagesColRef, {
-                senderId: user.uid,
-                text: newMessage,
-                timestamp: serverTimestamp(),
+            const token = await user.getIdToken();
+            const response = await fetch('/api/chats/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ chatId: activeChat.id, text: newMessage }),
             });
-
-            const chatDocRef = doc(firestore, 'chats', activeChat.id);
-            await setDoc(chatDocRef, {
-                lastMessage: newMessage,
-                lastMessageTimestamp: serverTimestamp(),
-            }, { merge: true });
-
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not send message.');
             setNewMessage('');
         } catch (error) {
             console.error("Error sending message:", error);
@@ -148,7 +150,10 @@ function ChatPage() {
                                         </Avatar>
                                         <div className="flex-1 overflow-hidden">
                                             <p className="font-semibold truncate">{otherUser?.name || 'Unknown User'}</p>
-                                            <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm text-muted-foreground truncate">{chat.lastMessage || 'Start a conversation'}</p>
+                                                {!!user && (chat.unreadCounts?.[user.uid] || 0) > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">{chat.unreadCounts?.[user.uid]}</span>}
+                                            </div>
                                         </div>
                                     </div>
                                 </button>

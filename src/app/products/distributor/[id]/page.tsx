@@ -174,8 +174,9 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
                     </Button>
                     {(!user || user.uid !== business.uid) && (
                         <ContactSeller
-                            seller={business}
-                            message={`Hello ${business?.businessName || ''}, I found your products on ConnectLocal and would like to know more.`}
+                  seller={business}
+                  targetMemberId={business.uid}
+                  message={`Hello ${business?.businessName || ''}, I found your products on ConnectLocal and would like to know more.`}
                             fallback={user ? { label: "Chat", onClick: handleStartChat } : undefined}
                         />
                     )}
