@@ -10,7 +10,7 @@ import images from '@/app/lib/placeholder-images.json';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { usePublicBusiness } from "@/hooks/use-public-business";
 import { ContactSeller } from "@/components/ContactSeller";
-import { doc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { ProductSearch } from "@/components/ProductSearch";
 import { useAuth, UserProfile } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -63,53 +63,23 @@ export default function DistributorInventoryPage({ params }: { params: { id: str
     }
 
     try {
-      const chatsRef = collection(firestore, "chats");
-      const q = query(chatsRef, where('participants', 'array-contains', user.uid));
-      const querySnapshot = await getDocs(q);
-      
-      let existingChatId: string | null = null;
-      for (const chatSnap of querySnapshot.docs) {
-          const chatData = chatSnap.data();
-          if (chatData.participants && chatData.participants.includes(business.uid)) {
-              existingChatId = chatSnap.id;
-              break;
-          }
-      }
+      const token = await user.getIdToken();
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetId: business.uid }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start chat.");
 
-      const contactBusiness: FavoriteBusiness = {
+      await recordContact({
         id: business.uid,
         name: business.businessName || business.fullName || "Business",
         address: business.address || "",
         image: business.storefrontWallpaper || images.businesses.corner_store,
         dataAiHint: "storefront",
-      };
-      await recordContact(contactBusiness);
-
-      if (existingChatId) {
-        router.push(`/dashboard/chat?chatId=${existingChatId}`);
-        return;
-      }
-
-      const businessUserProfile = business;
-
-      const newChatRef = await addDoc(chatsRef, {
-        participants: [user.uid, business.uid],
-        participantProfiles: {
-          [user.uid]: { 
-              name: userProfile.fullName || userProfile.businessName || "User", 
-              role: userProfile.role 
-          },
-          [business.uid]: { 
-              name: businessUserProfile.businessName || "Business", 
-              role: businessUserProfile.role 
-          },
-        },
-        lastMessage: "Chat started...",
-        lastMessageTimestamp: serverTimestamp(),
       });
-
-      router.push(`/dashboard/chat?chatId=${newChatRef.id}`);
-
+      router.push(`/dashboard/chat?chatId=${encodeURIComponent(result.chatId)}`);
     } catch (error) {
       console.error("Error starting chat:", error);
       toast({ title: "Error", description: "Could not start chat.", variant: "destructive" });
