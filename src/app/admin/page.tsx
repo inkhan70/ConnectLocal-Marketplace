@@ -2,7 +2,7 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Store, ShoppingBag, Bell, Loader2 } from "lucide-react";
+import { Users, Store, ShoppingBag, Bell, Loader2, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
@@ -94,9 +94,15 @@ export default function AdminDashboardPage() {
             </Card>
         </Link>
       </div>
-       <div className="mt-8">
-            <Card>
-                <CardHeader>
+       <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <Link href="/admin/payments/providers">
+          <Card className="h-full hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Payment Providers</CardTitle><CreditCard className="h-4 w-4 text-muted-foreground" /></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">Configure country availability, currencies, and marketplace readiness.</p></CardContent>
+          </Card>
+        </Link>
+        <Card>
+            <CardHeader>
                     <CardTitle>Recent Signups</CardTitle>
                     <CardDescription>A list of the newest members.</CardDescription>
                 </CardHeader>
@@ -106,8 +112,8 @@ export default function AdminDashboardPage() {
                         User activity will be displayed here.
                     </div>
                 </CardContent>
-            </Card>
-        </div>
+        </Card>
+      </div>
     </div>
   );
 }

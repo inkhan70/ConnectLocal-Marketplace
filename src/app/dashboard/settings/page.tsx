@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Loader2, Upload, Trash2, ImageIcon, Sparkles, Banknote, Truck, MapPin } from "lucide-react";
 import { Location } from "@/components/Location";
 import { useFirestore, storage } from "@/firebase";
@@ -442,8 +443,9 @@ export default function SettingsPage() {
                     <CardContent>
                         <div className="p-8 text-center border-dashed border-2 rounded-md flex flex-col items-center">
                             <Banknote className="h-10 w-10 text-muted-foreground mb-4" />
-                            <p className="font-medium">Local payment integration is not yet available.</p>
-                            <p className="text-sm text-muted-foreground">Check back later to connect your bank or mobile money accounts.</p>
+                            <p className="font-medium">Manage your payment provider settings</p>
+                            <p className="text-sm text-muted-foreground">Review available providers, country, currency, and verification status.</p>
+                            <Button asChild className="mt-4"><Link href="/dashboard/payment-settings">Open Payment Settings</Link></Button>
                         </div>
                     </CardContent>
                 </Card>

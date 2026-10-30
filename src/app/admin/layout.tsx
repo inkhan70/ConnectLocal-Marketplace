@@ -29,6 +29,11 @@ const sidebarNavItems = [
         icon: CreditCard,
     },
     {
+        title: "Payment Providers",
+        href: "/admin/payments/providers",
+        icon: CreditCard,
+    },
+    {
         title: "Categories",
         href: "/admin/categories",
         icon: Store,
