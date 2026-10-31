@@ -3,6 +3,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { describeServerError, getAdminDb, verifyBearerToken } from '@/lib/server/firebase-admin';
 import { findSubcategory, getDashboardType } from '@/lib/subcategories';
 import { DEFAULT_SUBSCRIPTION_PLANS } from '@/lib/subscription-domain';
+import { readRealtimeCategories } from '@/lib/server/category-rtdb';
+import { categoryKeyFor, resolveLiveSubcategory } from '@/lib/category-live';
 
 export const runtime = 'nodejs';
 
@@ -28,20 +30,26 @@ export async function POST(request: Request) {
     const needsBusinessType = config.storedRole !== 'buyer' && !config.subcategoryId;
     const businessName = typeof body.businessName === 'string' ? body.businessName.trim().slice(0, 120) : '';
     let chosen: ReturnType<typeof findSubcategory> = null;
+    let chosenCategoryId: string | undefined;
     if (needsBusinessType) {
       const subcategoryId = typeof body.subcategoryId === 'string' ? body.subcategoryId : '';
-      chosen = findSubcategory(subcategoryId);
-      if (!chosen) {
-        const categoryConfig = await getAdminDb().collection('app_config').doc('categories').get();
-        const categories = Array.isArray(categoryConfig.data()?.list) ? categoryConfig.data()?.list : [];
-        const child = categories.find((item: any) => item.id === subcategoryId && item.parentId);
-        const parent = child ? categories.find((item: any) => item.id === child.parentId) : null;
-        if (child && parent) {
-          chosen = {
-            categoryKey: parent.id || parent.name,
-            option: { id: child.id, name: child.name, role: config.storedRole as any, dashboardType: config.dashboardType },
-          } as any;
-        }
+      // The LIVE admin list is the source of truth: it is the same list guests browse, so whatever a member
+      // registers under is exactly what the guest category page asks for.
+      let live: ReturnType<typeof resolveLiveSubcategory> = null;
+      try {
+        live = resolveLiveSubcategory(await readRealtimeCategories(), subcategoryId);
+      } catch (error) {
+        console.error('Live category lookup failed; falling back to the built-in catalogue:', error);
+      }
+      if (live) {
+        const categoryKey = categoryKeyFor(live.parent);
+        chosenCategoryId = live.parent.id;
+        const dashboardType = categoryKey === 'automotive' ? 'automotive'
+          : categoryKey === 'medical' && config.storedRole !== 'services' ? 'health'
+          : config.dashboardType;
+        chosen = { categoryKey, option: { id: live.child.id, name: live.child.name, role: config.storedRole as any, dashboardType } } as any;
+      } else {
+        chosen = findSubcategory(subcategoryId);
       }
       if (!chosen) return NextResponse.json({ error: 'Please choose a business type.' }, { status: 400 });
       if (!businessName) return NextResponse.json({ error: 'Please enter your business name.' }, { status: 400 });
@@ -86,6 +94,7 @@ export async function POST(request: Request) {
 
     if (chosen) {
       update.category = chosen.categoryKey;
+      if (chosenCategoryId) update.categoryId = chosenCategoryId;
       update.subcategoryId = chosen.option.id;
       update.subcategoryName = chosen.option.name;
     } else if (config.subcategoryId) {

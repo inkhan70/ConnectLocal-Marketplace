@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { getBuiltInCategories, getSubcategoriesForCategory } from "@/lib/subcategories";
+import { useLiveCategories } from "@/hooks/use-live-categories";
+import { categoryKeyFor, childCategories, topLevelCategories } from "@/lib/category-live";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
@@ -49,10 +50,11 @@ function SelectRoleContent() {
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
 
-  // Onboarding uses the same canonical taxonomy as signup and directory URLs.
-  // Admin category labels are display/configuration data, not alternate IDs.
-  const categoryChoices = useMemo(() => getBuiltInCategories().map((category) => ({ id: category.key, name: category.label })), []);
-  const availableSubcategories = useMemo(() => getSubcategoriesForCategory(categoryKey).filter((item) => item.role === selectedRole || (selectedRole === 'services' && item.role === 'services')), [categoryKey, selectedRole]);
+  // Onboarding reads the SAME live admin category list that guests browse (GET /api/categories), so a member can
+  // only register under a category/business type that the guest pages actually link to.
+  const { list: liveCategories, isLoading: categoriesLoading, error: categoriesError } = useLiveCategories();
+  const categoryChoices = useMemo(() => topLevelCategories(liveCategories).map((category) => ({ id: category.id, key: categoryKeyFor(category), name: category.name })), [liveCategories]);
+  const availableSubcategories = useMemo(() => childCategories(liveCategories, categoryKey).map((child) => ({ id: child.id, name: child.name })), [liveCategories, categoryKey]);
 
   const finished = useRef(false);
   const healing = useRef(false);
@@ -127,7 +129,7 @@ function SelectRoleContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ role: selectedRole, ...(needsBusinessType ? { subcategoryId, subcategoryName: availableSubcategories.find((item) => item.id === subcategoryId)?.name, category: categoryKey, businessName: businessName.trim() } : {}) }),
+        body: JSON.stringify({ role: selectedRole, ...(needsBusinessType ? { subcategoryId, subcategoryName: availableSubcategories.find((item) => item.id === subcategoryId)?.name, category: categoryChoices.find((c) => c.id === categoryKey)?.key, businessName: businessName.trim() } : {}) }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Failed to save your role.");
@@ -208,6 +210,8 @@ function SelectRoleContent() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Business category</label>
+                {categoriesLoading && <p className="text-xs text-muted-foreground">Loading categories…</p>}
+                {categoriesError && !categoriesLoading && categoryChoices.length === 0 && <p className="text-xs text-destructive">Could not load categories. Please refresh and try again.</p>}
                 <Select value={categoryKey} onValueChange={(v) => { setCategoryKey(v); setSubcategoryId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
                   <SelectContent>

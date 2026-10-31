@@ -11,7 +11,7 @@ import { resolveCategoryKey } from '@/lib/subcategories';
 export const PUBLIC_BUSINESS_ROLES = ['company', 'wholesaler', 'distributor', 'shopkeeper', 'services'] as const;
 
 export const PUBLIC_PROFILE_FIELDS = [
-  'uid', 'businessName', 'fullName', 'role', 'category', 'subcategoryId', 'subcategoryName', 'dashboardType',
+  'uid', 'businessName', 'fullName', 'role', 'category', 'categoryId', 'subcategoryId', 'subcategoryName', 'dashboardType',
   'address', 'city', 'state', 'countryCode', 'latitude', 'longitude', 'storefrontWallpaper', 'slogan',
   'businessDescription', 'createdAt', 'currencyCode',
   // Public Ghost Coin offer shown on product pages
