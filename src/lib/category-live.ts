@@ -143,3 +143,33 @@ export function businessMatchesCategory(
   if (!parent) return normText(biz.category) === wantedCategory;
   return placement.parent?.id === parent.id;
 }
+
+/** Dashboard layout for a member, from the category they chose and their role. */
+export function dashboardTypeFor(categoryKey: string, role: string): string {
+  if (categoryKey === 'automotive') return 'automotive';
+  if (categoryKey === 'medical' && role !== 'services') return 'health';
+  if (role === 'shopkeeper') return 'shopkeeper';
+  if (role === 'services') return 'services';
+  return 'business';
+}
+
+export type ChosenType = { categoryKey: string; categoryId: string; option: { id: string; name: string; role: string; dashboardType: string } };
+
+/** Validates a business-type id against the live list and returns everything the server stores for the member. */
+export function resolveChosenType(list: CategoryItem[] | null | undefined, subcategoryId: string | null | undefined, role: string): ChosenType | null {
+  const live = resolveLiveSubcategory(list, subcategoryId);
+  if (!live) return null;
+  const categoryKey = categoryKeyFor(live.parent);
+  return { categoryKey, categoryId: live.parent.id, option: { id: live.child.id, name: live.child.name, role, dashboardType: dashboardTypeFor(categoryKey, role) } };
+}
+
+/** Number of members placed under each live category/subcategory id (used by the admin screen). */
+export function countMembersByCategory(list: CategoryItem[] | null | undefined, members: StoredPlacement[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const member of members) {
+    const { parent, child } = placeBusiness(list, member);
+    if (parent) counts[parent.id] = (counts[parent.id] || 0) + 1;
+    if (child) counts[child.id] = (counts[child.id] || 0) + 1;
+  }
+  return counts;
+}

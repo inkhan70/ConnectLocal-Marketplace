@@ -61,6 +61,7 @@ export default function AdminCategoriesPage() {
   const { user } = useAuth();
   const { isAdmin, checking: isAdminChecking } = useIsAdmin();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState<string>("none");
@@ -102,6 +103,7 @@ export default function AdminCategoriesPage() {
       if (!response.ok) throw new Error(payload?.error || "Unable to load categories.");
       const list: CategoryItem[] = Array.isArray(payload.list) ? payload.list : [];
       setCategories(list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
+      setMemberCounts(payload.counts && typeof payload.counts === 'object' ? payload.counts : {});
     } catch (error: any) {
       console.error("Failed to load categories:", error);
       toast({ title: "Load failed", description: error.message || "Could not load categories.", variant: "destructive" });
@@ -368,7 +370,7 @@ export default function AdminCategoriesPage() {
                             <div className="min-w-0">
                               <p className="truncate font-semibold">{category.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {category.isActive === false ? "Inactive" : "Active"} · Main category
+                                {category.isActive === false ? "Inactive" : "Active"} · Main category · {memberCounts[category.id] || 0} members
                               </p>
                             </div>
                           </div>
@@ -395,7 +397,7 @@ export default function AdminCategoriesPage() {
                               <div key={subcategory.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
                                 <div className="min-w-0">
                                   <p className="truncate font-medium">{subcategory.name}</p>
-                                  <p className="text-xs text-muted-foreground">{subcategory.isActive === false ? "Inactive" : "Active"} · Subcategory</p>
+                                  <p className="text-xs text-muted-foreground">{subcategory.isActive === false ? "Inactive" : "Active"} · Subcategory · {memberCounts[subcategory.id] || 0} members</p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
                                   <Button type="button" variant="ghost" size="icon" onClick={() => void handleReorder(subcategory, -1)} disabled={saving} aria-label={`Move ${subcategory.name} up`}><ChevronUp className="h-4 w-4" /></Button>

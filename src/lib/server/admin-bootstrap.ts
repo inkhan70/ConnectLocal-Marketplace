@@ -103,6 +103,9 @@ export async function bootstrapProfile(
   auth: Auth,
   caller: BootstrapCaller,
   hints: BootstrapProfileHints = {},
+  // Validates the chosen business type. The API route passes a resolver backed by the LIVE admin category list;
+  // the built-in catalogue is only the fallback (used by tests and when the live list cannot be read).
+  resolveType: (subcategoryId: string, role: string) => { categoryKey: string; categoryId?: string; option: { id: string; name: string } } | null = (id) => findSubcategory(id),
 ): Promise<BootstrapResult> {
   const bootRef = db.collection(BOOTSTRAP_DOC.collection).doc(BOOTSTRAP_DOC.id);
   const userRef = db.collection('users').doc(caller.uid);
@@ -135,8 +138,8 @@ export async function bootstrapProfile(
     if (!userSnap.exists) {
       // Business type is validated against the built-in catalogue; category/name/dashboard layout come from it,
       // never from free text sent by the browser.
-      const chosenType = hints.subcategoryId ? findSubcategory(hints.subcategoryId) : null;
       const role = (hints.role as any) || 'buyer';
+      const chosenType = hints.subcategoryId ? resolveType(hints.subcategoryId, role) : null;
       // Onboarding is complete when the sign-up form already collected the role (and, for businesses, a valid type).
       onboardingComplete = hints.roleSelected === true && (role === 'buyer' || chosenType !== null);
       const base: any = createDefaultUserProfile(caller.uid, caller.email || '', {
@@ -155,6 +158,8 @@ export async function bootstrapProfile(
       });
       // A caller whose verified token already has the admin claim gets an admin profile (the claim is server-set).
       base.isAdmin = caller.claimIsAdmin === true;
+      if (chosenType && (chosenType as any).categoryId) base.categoryId = (chosenType as any).categoryId;
+      if (chosenType && (chosenType as any).option.dashboardType) base.dashboardType = (chosenType as any).option.dashboardType;
       // Defence in depth: re-validate here too, so only a clean +E.164 number is ever stored.
       const whatsapp = hints.contactWhatsapp ? normalizePhone(hints.contactWhatsapp) : null;
       if (whatsapp?.ok) base.contactWhatsapp = whatsapp.e164;

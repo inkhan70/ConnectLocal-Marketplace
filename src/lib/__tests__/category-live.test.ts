@@ -1,5 +1,5 @@
 import { createDefaultCategoryTaxonomy } from '@/lib/category-taxonomy';
-import { businessMatchesCategory, placeBusiness, resolveLiveSubcategory, categoryKeyFor, topLevelCategories, childCategories } from '@/lib/category-live';
+import { businessMatchesCategory, placeBusiness, resolveLiveSubcategory, categoryKeyFor, topLevelCategories, childCategories, resolveChosenType, countMembersByCategory } from '@/lib/category-live';
 import type { CategoryItem } from '@/lib/category-management';
 
 const base = createDefaultCategoryTaxonomy();
@@ -41,5 +41,27 @@ describe('live category pipeline', () => {
   it('onboarding choices equal what guests see', () => {
     const keys = topLevelCategories(live).map(categoryKeyFor);
     expect(keys).toEqual(expect.arrayContaining(['medical', 'food', 'toys']));
+  });
+
+  it('the server accepts an admin-added subcategory and rejects unknown ids', () => {
+    const chosen = resolveChosenType(live, 'cat_x1_sub', 'shopkeeper');
+    expect(chosen).toMatchObject({ categoryKey: 'toys', categoryId: 'cat_x1', option: { id: 'cat_x1_sub', name: 'Toy stores', dashboardType: 'shopkeeper' } });
+    expect(resolveChosenType(live, 'does_not_exist', 'company')).toBeNull();
+  });
+
+  it('a disabled (old) category is no longer offered or accepted', () => {
+    const hidden = live.map((c) => (c.id === 'cat_1' ? { ...c, isActive: false } : c));
+    expect(topLevelCategories(hidden).map((c) => c.id)).not.toContain('cat_1');
+    expect(resolveChosenType(hidden, 'cat_1_sub_1', 'company')).toBeNull();
+  });
+
+  it('counts members per category for the admin screen', () => {
+    const counts = countMembersByCategory(live, [
+      { category: 'toys', subcategoryId: 'cat_x1_sub' },
+      { category: 'medical', subcategoryId: 'health_clinic' },
+    ]);
+    expect(counts['cat_x1']).toBe(1);
+    expect(counts['cat_x1_sub']).toBe(1);
+    expect(counts['cat_4']).toBe(1);
   });
 });

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { describeServerError, getAdminAuth, getAdminDb, hasAdminClaim, verifyBearerToken } from '@/lib/server/firebase-admin';
 import { bootstrapProfile, sanitizeHints } from '@/lib/server/admin-bootstrap';
+import { readRealtimeCategories } from '@/lib/server/category-rtdb';
+import { resolveChosenType } from '@/lib/category-live';
+import { findSubcategory } from '@/lib/subcategories';
 
 export const runtime = 'nodejs';
 
@@ -16,6 +19,12 @@ export async function POST(request: NextRequest) {
   try {
     const decoded = await verifyBearerToken(request);
     const body = await request.json().catch(() => ({}));
+    const hints = sanitizeHints(body?.profile);
+    // Read the live list BEFORE the Firestore transaction (the transaction must not do slow external reads).
+    let liveList: Awaited<ReturnType<typeof readRealtimeCategories>> = [];
+    if (hints.subcategoryId) {
+      try { liveList = await readRealtimeCategories(); } catch (e) { console.error('Live categories unavailable for bootstrap:', e); }
+    }
     const result = await bootstrapProfile(
       getAdminDb(),
       getAdminAuth(),
@@ -26,7 +35,8 @@ export async function POST(request: NextRequest) {
         displayName: (decoded as any).name || null,
         claimIsAdmin: hasAdminClaim(decoded as any),
       },
-      sanitizeHints(body?.profile),
+      hints,
+      (id, role) => resolveChosenType(liveList, id, role) || findSubcategory(id),
     );
     return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {
