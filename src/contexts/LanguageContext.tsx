@@ -8,16 +8,19 @@ import en from '@/locales/en.json';
 type Translations = typeof en;
 
 const bundledLanguageInfo = [
-    { code: "en", name: "English" },
-    { code: "ar", name: "العربية (Arabic)" },
-    { code: "ur", name: "اردو (Urdu)" },
-    { code: "fa", name: "فارسی (Farsi)" },
-    { code: "hi", name: "हिन्दी (Hindi)" },
+    { code: "en", name: "English", nativeName: "English", direction: "ltr" as const },
+    { code: "ar", name: "Arabic", nativeName: "العربية", direction: "rtl" as const },
+    { code: "ur", name: "Urdu", nativeName: "اردو", direction: "rtl" as const },
+    { code: "fa", name: "Persian", nativeName: "فارسی", direction: "rtl" as const },
+    { code: "hi", name: "Hindi", nativeName: "हिन्दी", direction: "ltr" as const },
 ];
 
 interface LanguageInfo {
     code: string;
     name: string;
+    nativeName?: string;
+    direction?: 'ltr' | 'rtl';
+    version?: number;
 }
 
 // Define the shape of the context
@@ -80,11 +83,16 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const loadCustomLanguages = useCallback(() => {
+    if (typeof fetch === 'function') {
+      fetch('/api/languages', { cache: 'force-cache' }).then((response) => response.ok ? response.json() : null).then((data) => {
+        if (data?.languages?.length) setAvailableLanguages(data.languages.map((lang: LanguageInfo) => ({ ...lang, name: lang.nativeName || lang.name || lang.code })));
+      }).catch(() => undefined);
+    }
     const customLangsRaw = localStorage.getItem('customLanguages');
     if (customLangsRaw) {
         try {
             const customLangs: {code: string, name: string, dict: object}[] = JSON.parse(customLangsRaw);
-            const newLangInfo = [...bundledLanguageInfo];
+            const newLangInfo: LanguageInfo[] = [...bundledLanguageInfo];
 
             customLangs.forEach(lang => {
                 if (!newLangInfo.some(l => l.code === lang.code)) {
@@ -137,6 +145,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 const isCustom = !bundledLanguageInfo.some(l => l.code === lang);
                 newTranslation = await readLanguagePack(lang);
                 if (isCustom) {
+                    const remote = typeof fetch === 'function' ? await fetch(`/api/languages?code=${encodeURIComponent(lang)}`, { cache: 'force-cache' }) : null;
+                    if (remote?.ok) newTranslation = (await remote.json()).translations;
                     const customLangsRaw = localStorage.getItem('customLanguages');
                     if (customLangsRaw) {
                         const customLangs = JSON.parse(customLangsRaw);
@@ -146,9 +156,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         }
                     }
                 } else {
-                    // Dynamically import the language file
-                    const module = await import(`@/locales/${lang}.json`);
-                    newTranslation = module.default;
+                    const remote = typeof fetch === 'function' ? await fetch(`/api/languages?code=${encodeURIComponent(lang)}`, { cache: 'force-cache' }) : null;
+                    const remoteLanguage = remote?.ok ? await remote.json() : null;
+                    newTranslation = remoteLanguage?.translations || (await import(`@/locales/${lang}.json`)).default;
+                    if (remoteLanguage?.version) await writeLanguagePack(`${lang}:${remoteLanguage.version}`, newTranslation);
                 }
             }
 
