@@ -1,0 +1,206 @@
+{
+  "health_doctor": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_clinic": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_hospital": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_dental": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_dentist": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_therapy": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_lab": [
+    "medical",
+    "Healthcare providers"
+  ],
+  "health_pharmacy": [
+    "medical",
+    "Pharmacies and retailers"
+  ],
+  "health_pharmaceutical": [
+    "medical",
+    "Pharmaceutical producers"
+  ],
+  "health_distributor": [
+    "medical",
+    "Medical distributors"
+  ],
+  "food_restaurant": [
+    "food",
+    "Restaurants and caterers"
+  ],
+  "food_cloud_kitchen": [
+    "food",
+    "Restaurants and caterers"
+  ],
+  "food_catering": [
+    "food",
+    "Restaurants and caterers"
+  ],
+  "hosp_restaurant": [
+    "food",
+    "Restaurants and caterers"
+  ],
+  "food_wholesaler": [
+    "food",
+    "Food wholesalers"
+  ],
+  "food_shop": [
+    "food",
+    "Grocery retailers"
+  ],
+  "auto_dealership": [
+    "automotive",
+    "Vehicle retailers"
+  ],
+  "auto_parts": [
+    "automotive",
+    "Vehicle retailers"
+  ],
+  "auto_service": [
+    "automotive",
+    "Automotive repair services"
+  ],
+  "auto_distributor": [
+    "automotive",
+    "Automotive distributors"
+  ],
+  "re_broker": [
+    "real-estate",
+    "Real estate brokers"
+  ],
+  "re_developer": [
+    "real-estate",
+    "Property developers"
+  ],
+  "re_landlord": [
+    "real-estate",
+    "Property management services"
+  ],
+  "svc_plumber": [
+    "services",
+    "Service providers"
+  ],
+  "svc_electrician": [
+    "services",
+    "Service providers"
+  ],
+  "svc_cleaning": [
+    "services",
+    "Service providers"
+  ],
+  "svc_tutor": [
+    "services",
+    "Service providers"
+  ],
+  "svc_consulting": [
+    "services",
+    "Professional consultants"
+  ],
+  "elec_mobile_laptop_shop": [
+    "electronics",
+    "Electronics retailers"
+  ],
+  "elec_shop": [
+    "electronics",
+    "Electronics retailers"
+  ],
+  "elec_distributor": [
+    "electronics",
+    "Electronics distributors"
+  ],
+  "elec_repair": [
+    "electronics",
+    "Repair services"
+  ],
+  "ap_boutique": [
+    "apparel",
+    "Clothing retailers"
+  ],
+  "ap_wholesaler": [
+    "apparel",
+    "Apparel wholesalers"
+  ],
+  "ap_manufacturer": [
+    "apparel",
+    "Apparel manufacturers"
+  ],
+  "ap_tailor": [
+    "apparel",
+    "Tailoring services"
+  ],
+  "beaut_salon": [
+    "beauty",
+    "Salons and spas"
+  ],
+  "beaut_cosmetics": [
+    "beauty",
+    "Beauty retailers"
+  ],
+  "beaut_distributor": [
+    "beauty",
+    "Beauty distributors"
+  ],
+  "jew_shop": [
+    "jewelry-gemstones",
+    "Fine jewelry stores"
+  ],
+  "jew_maker": [
+    "jewelry-gemstones",
+    "Jewelry manufacturers"
+  ],
+  "jew_wholesaler": [
+    "jewelry-gemstones",
+    "Jewelry wholesalers"
+  ],
+  "shoe_shop": [
+    "shoes",
+    "Shoe retailers"
+  ],
+  "shoe_manufacturer": [
+    "shoes",
+    "Shoe manufacturers"
+  ],
+  "shoe_wholesaler": [
+    "shoes",
+    "Shoe wholesalers"
+  ],
+  "drink_cafe": [
+    "drinks",
+    "Cafes and retailers"
+  ],
+  "drink_distributor": [
+    "drinks",
+    "Beverage distributors"
+  ],
+  "drink_manufacturer": [
+    "drinks",
+    "Beverage producers"
+  ],
+  "pet_shop": [
+    "pets",
+    "Pet stores"
+  ],
+  "pet_vet": [
+    "pets",
+    "Veterinary services"
+  ],
+  "pet_grooming": [
+    "pets",
+    "Pet care agencies"
+  ]
+}

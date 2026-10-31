@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, BriefcaseBusiness } from "lucide-react";
-import { getSubcategoriesForCategory } from '@/lib/subcategories';
+import { useLiveCategories } from '@/hooks/use-live-categories';
+import { childCategories, normText, topLevelCategories, categoryKeyFor } from '@/lib/category-live';
 import { Suspense } from "react";
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -16,7 +17,9 @@ function RolesContent() {
 
     const categoryName = decodeURIComponent(category).replace(/-/g, ' ');
     const categoryTitle = categoryName.replace(/\b\w/g, (letter) => letter.toUpperCase());
-    const subcategories = getSubcategoriesForCategory(categoryName);
+    const { list: liveCategories } = useLiveCategories();
+    const parent = topLevelCategories(liveCategories).find((p) => [normText(p.name), normText(categoryKeyFor(p))].includes(normText(categoryName)));
+    const subcategories = parent ? childCategories(liveCategories, parent.id) : [];
 
     return (
         <div className="container mx-auto px-4 py-12">

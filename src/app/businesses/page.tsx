@@ -15,7 +15,8 @@ import { usePublicBusinesses } from "@/hooks/use-public-business";
 import { UserProfile } from "@/contexts/AuthContext";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
 import { cn } from "@/lib/utils";
-import { resolveCategoryKey } from '@/lib/subcategories';
+import { useLiveCategories } from '@/hooks/use-live-categories';
+import { businessMatchesCategory, normText, resolveLiveSubcategory, topLevelCategories, categoryKeyFor } from '@/lib/category-live';
 import { 
   calculateDistance, 
   isValidCoordinate,
@@ -49,10 +50,10 @@ function BusinessesContent() {
   const roleParam = searchParams.get('role') || 'shopkeeper';
   const subcategoryParam = searchParams.get('subcategory') || ''; 
   
-  // Firestore stores category keys (for example `automotive`), while the UI uses title case.
-  // Unknown admin labels (for example legacy `Cat3`) must not become a false
-  // Firestore category filter. The subcategory filter remains authoritative.
-  const category = categoryParam === 'all' ? 'all' : (resolveCategoryKey(categoryParam) || 'all');
+  // Category/subcategory matching runs against the live admin list (see lib/category-live.ts), the same list the
+  // member picked from during onboarding, so the two can no longer drift apart.
+  const { list: liveCategories, isLoading: categoriesLoading } = useLiveCategories();
+  const category = categoryParam === 'all' ? 'all' : normText(decodeURIComponent(categoryParam)).replace(/ /g, '-');
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
@@ -108,23 +109,7 @@ function BusinessesContent() {
     if (!fetchedBusinesses) return;
 
     const processedBusinesses: Business[] = fetchedBusinesses
-      .filter((biz) => {
-        const storedCategory = resolveCategoryKey(String(biz.category || '')) || String(biz.category || '').trim().toLowerCase();
-        const storedSubcategory = String(biz.subcategoryId || '').trim().toLowerCase();
-        const storedSubcategoryName = String(biz.subcategoryName || '').trim().toLowerCase();
-        if (category !== 'all' && storedCategory !== category && !storedSubcategory.includes(category)) return false;
-        if (subcategoryParam) {
-          const normalizeType = (value: string) => value.replace(/[^a-z0-9]+/g, ' ').trim();
-          const requestedSubcategory = normalizeType(decodeURIComponent(subcategoryParam));
-          const matchesSubcategory = normalizeType(storedSubcategory) === requestedSubcategory ||
-            normalizeType(storedSubcategoryName) === requestedSubcategory ||
-            normalizeType(storedSubcategoryName).includes(requestedSubcategory) ||
-            // Preserve discoverability for accounts created before stable subcategory IDs.
-            (requestedSubcategory === 'food_restaurant' && /cafe|restaurant/.test(`${storedSubcategory} ${storedSubcategoryName}`));
-          if (!matchesSubcategory) return false;
-        }
-        return true;
-      })
+      .filter((biz) => businessMatchesCategory(liveCategories, biz as any, { categoryParam, subcategoryParam }))
       .map((biz) => ({
         ...biz,
         id: biz.uid,
@@ -163,15 +148,17 @@ function BusinessesContent() {
     } else {
       setDisplayedBusinesses(matchingBusinesses.slice(0, 50));
     }
-  }, [fetchedBusinesses, userLocation, searchQuery, category, subcategoryParam]);
+  }, [fetchedBusinesses, liveCategories, userLocation, searchQuery, categoryParam, subcategoryParam]);
 
 
   const roleTitle = t(`roles.${roleParam}`); // Use original plural param for display
-  const categoryTitle = category === 'all' ? 'All Businesses' : capitalize(category.replace(/-/g, ' '));
+  const liveSub = subcategoryParam ? resolveLiveSubcategory(liveCategories, decodeURIComponent(subcategoryParam)) : null;
+  const liveParent = topLevelCategories(liveCategories).find((p) => normText(p.name) === normText(decodeURIComponent(categoryParam)) || normText(categoryKeyFor(p)) === normText(decodeURIComponent(categoryParam)));
+  const categoryTitle = liveSub ? `${liveSub.parent.name} · ${liveSub.child.name}` : liveParent ? liveParent.name : category === 'all' ? 'All Businesses' : capitalize(category.replace(/-/g, ' '));
   const isLocationEnabled = !!userLocation;
   const hasNearbyResults = isLocationEnabled && displayedBusinesses.some((biz) => biz.distance !== undefined);
 
-  if (loading) {
+  if (loading || categoriesLoading) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
