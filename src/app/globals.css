@@ -82,4 +82,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  html[dir="rtl"] body {
+    font-family: "Noto Sans Arabic", "PT Sans", sans-serif;
+  }
+  html[lang="ur"] body {
+    font-family: "Noto Nastaliq Urdu", "Noto Sans Arabic", sans-serif;
+  }
+  html[lang="fa"] body {
+    font-family: "Vazirmatn", "Noto Sans Arabic", sans-serif;
+  }
 }
