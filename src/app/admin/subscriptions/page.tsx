@@ -117,7 +117,7 @@ export default function SubscriptionsDashboard() {
         <div>
           <h1 className="text-2xl font-bold">Subscription Management</h1>
           <p className="text-muted-foreground">
-            Manage subscription plans and user assignments.
+            Manage subscription plans and user assignments. Saved plans are published to the member Plans & Billing page immediately.
           </p>
         </div>
         <div className="flex gap-2">

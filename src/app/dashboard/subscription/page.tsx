@@ -141,7 +141,7 @@ export default function SubscriptionPage() {
       <div className="border-b"><div className="container mx-auto px-4 py-6">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"><ArrowLeft className="h-4 w-4" />Back to Dashboard</Link>
         <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-        <p className="text-muted-foreground mt-2">{isBuyer ? 'Buyer accounts use the free Community plan. No paid membership is required.' : 'Free is enough to establish your business. Paid plans add tools that help it grow.'}</p>
+        <p className="text-muted-foreground mt-2">{isBuyer ? 'Buyer accounts use the free Community plan. No paid membership is required.' : 'Choose the free Community plan or change to a paid monthly or yearly plan below.'}</p>
       </div></div>
 
       <div className="container mx-auto px-4 py-8">
@@ -159,8 +159,21 @@ export default function SubscriptionPage() {
 
         {isActive && userProfile?.stripeSubscriptionId && <div className="flex justify-end mt-4"><Button variant="outline" onClick={openBillingPortal} disabled={isChangingPlan}><CreditCard className="mr-2 h-4 w-4" />Manage Billing</Button></div>}
 
-        <div className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4 mb-2"><div><h2 className="text-2xl font-bold">{isBuyer ? 'Your plan' : 'Plans'}</h2><p className="text-muted-foreground mt-2">{isBuyer ? 'Your Community access is free and includes everything buyers need.' : 'Storage and image limits are infrastructure limits; paid value comes from visibility, leads, customer tools and business features.'}</p></div>{!isBuyer && <div className="inline-flex rounded-lg border p-1" role="group" aria-label="Billing cycle"><Button type="button" size="sm" variant={billingInterval === 'month' ? 'default' : 'ghost'} onClick={() => setBillingInterval('month')}>Monthly</Button><Button type="button" size="sm" variant={billingInterval === 'year' ? 'default' : 'ghost'} onClick={() => setBillingInterval('year')}>Yearly <span className="ml-1 text-xs">Save 20%</span></Button></div>}</div>
-          {plansLoading ? <div className="flex justify-center min-h-96 items-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : sortedPlans.length === 0 ? <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>No plans are configured yet. An administrator can seed the recommended ConnectLocal plans.</AlertDescription></Alert> : <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">{sortedPlans.map((plan) => <SubscriptionPlanCard key={plan.id} plan={{ id: plan.id || '', name: plan.name, description: plan.description, price: plan.price, features: plan.features || [], storageLimit: plan.storageLimit, storageLimitBytes: plan.storageLimitBytes, maxImages: plan.maxImages, listings: plan.listings, maxListings: plan.maxListings, billingInterval }} isActive={userProfile?.subscriptionPlanId === plan.id} billingInterval={billingInterval} onSelect={handleSelectPlan} />)}</div>}
+        <div className="mt-12">
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">{isBuyer ? 'Your plan' : 'Change your plan'}</h2>
+              <p className="mt-2 text-muted-foreground">{isBuyer ? 'Your Community access is free and includes everything buyers need.' : 'Choose the free Community plan or change to a paid monthly or yearly plan below.'}</p>
+            </div>
+            {!isBuyer && <div>
+              <p className="mb-2 text-sm font-medium">Choose billing cycle</p>
+              <div className="inline-flex rounded-lg border p-1" role="group" aria-label="Billing cycle">
+                <Button type="button" size="sm" variant={billingInterval === 'month' ? 'default' : 'ghost'} onClick={() => setBillingInterval('month')}>Monthly</Button>
+                <Button type="button" size="sm" variant={billingInterval === 'year' ? 'default' : 'ghost'} onClick={() => setBillingInterval('year')}>Yearly <span className="ml-1 text-xs">Save 20%</span></Button>
+              </div>
+            </div>}
+          </div>
+          {plansLoading ? <div className="flex min-h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : sortedPlans.length === 0 ? <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>No plans are configured yet. An administrator can seed the recommended ConnectLocal plans.</AlertDescription></Alert> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">{sortedPlans.map((plan) => <SubscriptionPlanCard key={plan.id} plan={{ id: plan.id || '', name: plan.name, description: plan.description, price: plan.price, features: plan.features || [], storageLimit: plan.storageLimit, storageLimitBytes: plan.storageLimitBytes, maxImages: plan.maxImages, listings: plan.listings, maxListings: plan.maxListings, billingInterval }} isActive={userProfile?.subscriptionPlanId === plan.id} billingInterval={billingInterval} onSelect={handleSelectPlan} />)}</div>}
         </div>
       </div>
     </div>

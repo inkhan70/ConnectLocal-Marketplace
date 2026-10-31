@@ -50,6 +50,11 @@ const businessSidebarNavItems = [
         href: "/dashboard/payment-settings",
         icon: CreditCard,
     },
+    {
+        title: "Plans & Billing",
+        href: "/dashboard/subscription",
+        icon: CreditCard,
+    },
 ];
 
 const buyerSidebarNavItems = [
@@ -76,6 +81,11 @@ const buyerSidebarNavItems = [
     {
         title: "Payments",
         href: "/dashboard/payment-settings",
+        icon: CreditCard,
+    },
+    {
+        title: "Plans & Billing",
+        href: "/dashboard/subscription",
         icon: CreditCard,
     },
 ]
