@@ -218,6 +218,12 @@ const legacySubcategoriesMap: Record<string, SubcategoryOption[]> = {
   // Electronics
   electronics: [
     {
+      id: 'elec_mobile_laptop_shop',
+      name: 'Mobiles & Laptop Shop',
+      role: 'shopkeeper',
+      dashboardType: 'electronics',
+    },
+    {
       id: 'elec_shop',
       name: 'Electronics Retail Store',
       role: 'shopkeeper',
@@ -397,9 +403,12 @@ export const subcategoriesMap: Record<string, SubcategoryOption[]> = (() => {
   return result;
 })();
 
-// Preserve legacy lookups only when an administrator has not yet seeded the new taxonomy.
+// Preserve built-in IDs even when the admin taxonomy adds custom entries. This keeps
+// existing profiles discoverable while allowing the admin labels/order to evolve.
 for (const [key, options] of Object.entries(legacySubcategoriesMap)) {
-  if (!subcategoriesMap[key]?.length) subcategoriesMap[key] = options;
+  const existing = subcategoriesMap[key] || [];
+  const ids = new Set(existing.map((option) => option.id));
+  subcategoriesMap[key] = [...existing, ...options.filter((option) => !ids.has(option.id))];
 }
 subcategoriesMap.jewelry = subcategoriesMap['jewelry-gemstones'];
 subcategoriesMap['home-&-garden'] = subcategoriesMap['home-garden'];
@@ -489,6 +498,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
   'real-estate': 'Real Estate & Property',
   'home-&-garden': 'Home & Garden',
 };
+
+for (const key of Object.keys(subcategoriesMap)) {
+  if (!CATEGORY_LABELS[key]) CATEGORY_LABELS[key] = key.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 /** Finds a business type by id and returns it with the category key it belongs to (or null if unknown). */
 export function findSubcategory(subcategoryId: string): { categoryKey: string; option: SubcategoryOption } | null {

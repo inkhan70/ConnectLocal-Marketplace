@@ -50,7 +50,9 @@ function BusinessesContent() {
   const subcategoryParam = searchParams.get('subcategory') || ''; 
   
   // Firestore stores category keys (for example `automotive`), while the UI uses title case.
-  const category = categoryParam === 'all' ? 'all' : (resolveCategoryKey(categoryParam) || categoryParam.trim().toLowerCase());
+  // Unknown admin labels (for example legacy `Cat3`) must not become a false
+  // Firestore category filter. The subcategory filter remains authoritative.
+  const category = categoryParam === 'all' ? 'all' : (resolveCategoryKey(categoryParam) || 'all');
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
@@ -112,10 +114,11 @@ function BusinessesContent() {
         const storedSubcategoryName = String(biz.subcategoryName || '').trim().toLowerCase();
         if (category !== 'all' && storedCategory !== category && !storedSubcategory.includes(category)) return false;
         if (subcategoryParam) {
-          const requestedSubcategory = subcategoryParam.trim().toLowerCase();
-          const matchesSubcategory = storedSubcategory === requestedSubcategory ||
-            storedSubcategoryName === requestedSubcategory ||
-            storedSubcategoryName.includes(requestedSubcategory) ||
+          const normalizeType = (value: string) => value.replace(/[^a-z0-9]+/g, ' ').trim();
+          const requestedSubcategory = normalizeType(decodeURIComponent(subcategoryParam));
+          const matchesSubcategory = normalizeType(storedSubcategory) === requestedSubcategory ||
+            normalizeType(storedSubcategoryName) === requestedSubcategory ||
+            normalizeType(storedSubcategoryName).includes(requestedSubcategory) ||
             // Preserve discoverability for accounts created before stable subcategory IDs.
             (requestedSubcategory === 'food_restaurant' && /cafe|restaurant/.test(`${storedSubcategory} ${storedSubcategoryName}`));
           if (!matchesSubcategory) return false;
