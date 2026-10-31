@@ -2,15 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFirestore, useAuth as useFirebaseAuth, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useAuth as useFirebaseAuth } from "@/firebase";
 import { bootstrapUserProfile } from "@/lib/bootstrap-client";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CATEGORY_LABELS, subcategoriesMap } from "@/lib/subcategories";
+import { getBuiltInCategories, getSubcategoriesForCategory } from "@/lib/subcategories";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
@@ -23,10 +22,6 @@ import {
 
 // "doctor" is not a stored role: it is saved as a service provider with the
 // health_doctor subcategory so the correct dashboard is shown.
-type CategoryRecord = { id: string; name: string; parentId?: string; isActive?: boolean; order?: number };
-
-type CategoriesConfig = { list?: CategoryRecord[] };
-
 const BUSINESS_ROLES = [
   { id: "buyer", label: "Buyer / Customer", description: "Shop and purchase products" },
   { id: "company", label: "Producer / Company", description: "Produce and sell products" },
@@ -42,10 +37,8 @@ function SelectRoleContent() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect");
   const { user, userProfile, loading } = useAuth();
-  const firestore = useFirestore();
   const firebaseAuth = useFirebaseAuth();
-  const categoriesRef = useMemoFirebase(() => doc(firestore, "app_config", "categories"), [firestore]);
-  const { data: categoriesConfig } = useDoc<CategoriesConfig>(categoriesRef);
+
   const { toast } = useToast();
   const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -56,10 +49,10 @@ function SelectRoleContent() {
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
 
-  const activeCategories = useMemo(() => (categoriesConfig?.list || []).filter((item) => item.isActive !== false), [categoriesConfig]);
-  const categoryChoices = useMemo(() => activeCategories.filter((item) => !item.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [activeCategories]);
-  const dynamicSubcategories = useMemo(() => activeCategories.filter((item) => item.parentId === categoryKey).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [activeCategories, categoryKey]);
-  const availableSubcategories = dynamicSubcategories.length ? dynamicSubcategories : (subcategoriesMap[categoryKey] || []).map((item) => ({ id: item.id, name: item.name }));
+  // Onboarding uses the same canonical taxonomy as signup and directory URLs.
+  // Admin category labels are display/configuration data, not alternate IDs.
+  const categoryChoices = useMemo(() => getBuiltInCategories().map((category) => ({ id: category.key, name: category.label })), []);
+  const availableSubcategories = useMemo(() => getSubcategoriesForCategory(categoryKey).filter((item) => item.role === selectedRole || (selectedRole === 'services' && item.role === 'services')), [categoryKey, selectedRole]);
 
   const finished = useRef(false);
   const healing = useRef(false);
@@ -92,7 +85,7 @@ function SelectRoleContent() {
     if (!userProfile.needsRoleSelection) {
       router.replace("/dashboard");
     }
-  }, [loading, user, userProfile, router, firestore]);
+  }, [loading, user, userProfile, router]);
 
   const needsBusinessType = selectedRole !== "" && selectedRole !== "buyer" && selectedRole !== "doctor";
 
@@ -134,7 +127,7 @@ function SelectRoleContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ role: selectedRole, ...(needsBusinessType ? { subcategoryId, businessName: businessName.trim() } : {}) }),
+        body: JSON.stringify({ role: selectedRole, ...(needsBusinessType ? { subcategoryId, subcategoryName: availableSubcategories.find((item) => item.id === subcategoryId)?.name, category: categoryKey, businessName: businessName.trim() } : {}) }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Failed to save your role.");
@@ -218,7 +211,7 @@ function SelectRoleContent() {
                 <Select value={categoryKey} onValueChange={(v) => { setCategoryKey(v); setSubcategoryId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
                   <SelectContent>
-                    {(categoryChoices.length ? categoryChoices : Object.keys(subcategoriesMap).map((key) => ({ id: key, name: CATEGORY_LABELS[key] || key }))).map((category) => (
+                    {categoryChoices.map((category) => (
                       <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                     ))}
                   </SelectContent>
