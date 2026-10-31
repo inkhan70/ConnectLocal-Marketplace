@@ -4,12 +4,17 @@ import { DEFAULT_PROVIDER_CAPABILITIES } from '@/lib/server/provider-capabilitie
 
 export const runtime = 'nodejs';
 
+type StoredProviderConfig = { id: string; country: string; providerId: string; [key: string]: unknown };
+
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
     const snap = await getAdminDb().collection('paymentProviderConfigs').get();
-    const configurations = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const overrides = new Map(configurations.filter((config) => config.country === 'GLOBAL').map((config) => [config.providerId, config]));
+    const configurations: StoredProviderConfig[] = snap.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return { id: doc.id, country: String(data.country || 'GLOBAL'), providerId: String(data.providerId || ''), ...data };
+    });
+    const overrides = new Map(configurations.filter((config) => config.country === 'GLOBAL').map((config) => [String(config.providerId), config]));
     return NextResponse.json({ providers: DEFAULT_PROVIDER_CAPABILITIES.map((provider) => ({ ...provider, ...(overrides.get(provider.id) || {}) })), configurations });
   } catch (error) {
     return NextResponse.json({ error: safeMessage(error, 'Unable to load provider settings.') }, { status: authErrorStatus(error) });
