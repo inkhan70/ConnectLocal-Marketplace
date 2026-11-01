@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import { createDefaultUserProfile } from '@/lib/user-utils';
+import { roleForSelection } from '@/lib/category-live';
 import { findSubcategory } from '@/lib/subcategories';
 import { normalizePhone } from '@/lib/contact';
 
@@ -138,8 +139,13 @@ export async function bootstrapProfile(
     if (!userSnap.exists) {
       // Business type is validated against the built-in catalogue; category/name/dashboard layout come from it,
       // never from free text sent by the browser.
-      const role = (hints.role as any) || 'buyer';
-      const chosenType = hints.subcategoryId ? resolveType(hints.subcategoryId, role) : null;
+      let role = (hints.role as any) || 'buyer';
+      let chosenType = hints.subcategoryId ? resolveType(hints.subcategoryId, role) : null;
+      // A Buyer / Customer / Collector business type always makes a buyer (never a shopkeeper / service provider).
+      if (role !== 'buyer' && chosenType && roleForSelection(hints.category, chosenType.option.name) === 'buyer') {
+        role = 'buyer';
+        chosenType = resolveType(hints.subcategoryId as string, role);
+      }
       // Onboarding is complete when the sign-up form already collected the role (and, for businesses, a valid type).
       onboardingComplete = hints.roleSelected === true && (role === 'buyer' || chosenType !== null);
       const base: any = createDefaultUserProfile(caller.uid, caller.email || '', {
@@ -160,6 +166,8 @@ export async function bootstrapProfile(
       base.isAdmin = caller.claimIsAdmin === true;
       if (chosenType && (chosenType as any).categoryId) base.categoryId = (chosenType as any).categoryId;
       if (chosenType && (chosenType as any).option.dashboardType) base.dashboardType = (chosenType as any).option.dashboardType;
+      // Buyers always open the buyer dashboard, whatever (optional) category they picked.
+      if (role === 'buyer') base.dashboardType = 'buyer';
       // Defence in depth: re-validate here too, so only a clean +E.164 number is ever stored.
       const whatsapp = hints.contactWhatsapp ? normalizePhone(hints.contactWhatsapp) : null;
       if (whatsapp?.ok) base.contactWhatsapp = whatsapp.e164;

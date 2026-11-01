@@ -125,7 +125,7 @@ export function SignupForm() {
         if (!parent) return;
         const categoryKey = categoryKeyFor(parent);
         form.setValue('category', categoryKey);
-        form.setValue('role', roleForCategory(categoryKey), { shouldValidate: true });
+        if (isBuyerType(categoryKey)) form.setValue('role', 'buyer', { shouldValidate: true });
         const subs = subsFor(categoryKey);
         setSubcategories(subs);
         const selected = subcategoryParam ? subs.find(s => s.id === subcategoryParam) : undefined;
@@ -140,6 +140,7 @@ export function SignupForm() {
         defaultValues: {
             email: "",
             password: "",
+            role: "buyer",
             businessName: "",
             fullName: "",
             address: "",
@@ -151,8 +152,9 @@ export function SignupForm() {
     const selectedRole = form.watch("role");
     const selectedCategory = form.watch("category");
 
-    // One shared rule (also used by Google sign-up and the server): Buyer / Customer / Collector => buyer role.
-    const roleForCategory = (categoryKey: string, subcategoryName?: string) => roleForSelection(categoryKey, subcategoryName);
+    // A buyer-type category / business type (Buyer, Customer, Collector, Shopper) makes the member a buyer. Anything else
+    // never changes the role: business roles are always chosen explicitly in the "I am signing up as" field.
+    const isBuyerType = (categoryKey?: string, subcategoryName?: string) => roleForSelection(categoryKey, subcategoryName) === 'buyer';
 
     // Update business types when the category changes.
     useEffect(() => {
@@ -165,7 +167,7 @@ export function SignupForm() {
             form.setValue('subcategoryId', '');
             form.setValue('subcategoryName', '');
         }
-        if (subs.length === 1) {
+        if (subs.length === 1 && form.getValues('role') !== 'buyer') {
             form.setValue('subcategoryId', subs[0].id, { shouldValidate: true });
             form.setValue('subcategoryName', subs[0].name);
         }
@@ -179,8 +181,7 @@ export function SignupForm() {
 
             // The profile (and, for the very first verified user of a fresh system, admin status) is created by the
             // server from the verified ID token. Nothing privileged is ever written from the browser.
-            try {
-                await bootstrapUserProfile(user, {
+            const profileHints = {
                     role: values.role,
                     businessName: values.businessName,
                     fullName: values.fullName,
@@ -196,10 +197,17 @@ export function SignupForm() {
                     address: values.address,
                     city: values.city,
                     state: values.state,
-                });
-            } catch (bootstrapError) {
-                // Non-fatal: the account exists and sign-in re-runs the bootstrap to create any missing profile.
-                console.error('Profile bootstrap failed during sign-up:', bootstrapError);
+            };
+            let profileSaved = false;
+            for (let attempt = 0; attempt < 2 && !profileSaved; attempt += 1) {
+                try {
+                    await bootstrapUserProfile(user, profileHints);
+                    profileSaved = true;
+                } catch (bootstrapError) {
+                    // Retry once; if it still fails the account exists and sign-in re-runs the bootstrap.
+                    console.error('Profile bootstrap failed during sign-up:', bootstrapError);
+                    await new Promise((resolve) => setTimeout(resolve, 600));
+                }
             }
 
             await (firebaseAuth as any).sendEmailVerification(user);
@@ -249,22 +257,61 @@ export function SignupForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="category"
+                name="role"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Business Category</FormLabel>
+                    <FormLabel>{t('signup.role')}</FormLabel>
                     <Select
                       value={field.value || ""}
                       onValueChange={(value) => {
                         field.onChange(value);
-                        form.setValue("role", roleForCategory(value), { shouldValidate: true });
+                        if (value === 'buyer') return; // buyers keep any interest category they pick
+                        // Switching to a business role: a buyer-type category no longer applies.
+                        if (isBuyerType(form.getValues('category'), form.getValues('subcategoryName'))) {
+                          form.setValue('category', '');
+                          form.setValue('subcategoryId', '');
+                          form.setValue('subcategoryName', '');
+                        }
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('signup.role_placeholder')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="buyer">Buyer / Customer</SelectItem>
+                        <SelectItem value="company">{t('signup.role_company')}</SelectItem>
+                        <SelectItem value="wholesaler">{t('signup.role_wholesaler')}</SelectItem>
+                        <SelectItem value="distributor">{t('signup.role_distributor')}</SelectItem>
+                        <SelectItem value="shopkeeper">{t('signup.role_shopkeeper')}</SelectItem>
+                        <SelectItem value="services">Service Provider</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{selectedRole === 'buyer' ? 'Interested in (optional)' : 'Business Category'}</FormLabel>
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Only Buyer / Customer / Collector categories change the role (to buyer); business roles are explicit.
+                        if (isBuyerType(value)) form.setValue("role", "buyer", { shouldValidate: true });
                         form.setValue("subcategoryId", "");
                         form.setValue("subcategoryName", "");
                       }}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a live category" />
+                          <SelectValue placeholder={selectedRole === 'buyer' ? "Choose what you collect or buy (optional)" : "Select a live category"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -316,6 +363,39 @@ export function SignupForm() {
                 )}
               />
             </div>
+
+
+            {selectedRole === 'buyer' && subcategories.length > 0 && (
+              <FormField
+                control={form.control}
+                name="subcategoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type (optional)</FormLabel>
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const selected = subcategories.find((sub) => sub.id === value);
+                        form.setValue('subcategoryName', selected?.name || '');
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a type (e.g. Collector)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {subcategories.map((sub) => (
+                          <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {selectedRole === 'buyer' ? (
               <FormField
@@ -375,7 +455,7 @@ export function SignupForm() {
                           const selected = subcategories.find(s => s.id === value);
                           if (selected) {
                             form.setValue('subcategoryName', selected.name);
-                            form.setValue('role', roleForCategory(selectedCategory || '', selected.name), { shouldValidate: true });
+                            if (isBuyerType(selectedCategory || '', selected.name)) form.setValue('role', 'buyer', { shouldValidate: true });
                           }
                         }} value={field.value || ""}>
                           <FormControl>

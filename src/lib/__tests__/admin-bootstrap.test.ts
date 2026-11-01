@@ -205,6 +205,24 @@ describe('first-admin bootstrap', () => {
       });
     });
 
+    test('manual sign-up as a buyer goes straight to the buyer dashboard (no role selection)', async () => {
+      const { db, auth } = await seed();
+      const r = await run(db, auth, verified('buyer1'), { role: 'buyer', roleSelected: true, fullName: 'Ayesha Khan', city: 'Karachi' });
+      expect(r).toMatchObject({ profileCreated: true, needsRoleSelection: false, isAdmin: false });
+      expect(db.docs.get('users/buyer1')).toMatchObject({ role: 'buyer', dashboardType: 'buyer', needsRoleSelection: false, roleSelectionCompleted: true });
+    });
+
+    test('a buyer who picks an interest type (Collector) stays a buyer with the buyer dashboard', async () => {
+      const { db, auth } = await seed();
+      const collector = (id: string, role: string) => ({ categoryKey: 'antiques', categoryId: 'cat_a', option: { id, name: 'Collector', role, dashboardType: role === 'buyer' ? 'buyer' : 'shopkeeper' } });
+      const asBuyer = await bootstrapProfile(db as any, auth as any, verified('c1'), { role: 'buyer', roleSelected: true, fullName: 'Collector One', subcategoryId: 'cat_a_sub', category: 'antiques' }, collector as any);
+      expect(asBuyer.needsRoleSelection).toBe(false);
+      expect(db.docs.get('users/c1')).toMatchObject({ role: 'buyer', dashboardType: 'buyer', subcategoryName: 'Collector', category: 'antiques' });
+      // Even if the browser claimed a business role, a Collector type is always a buyer on the server.
+      await bootstrapProfile(db as any, auth as any, verified('c2'), { role: 'shopkeeper', roleSelected: true, businessName: 'x', subcategoryId: 'cat_a_sub', category: 'antiques' }, collector as any);
+      expect(db.docs.get('users/c2')).toMatchObject({ role: 'buyer', dashboardType: 'buyer' });
+    });
+
     test('a clinic gets the health dashboard', async () => {
       const { db, auth } = await seed();
       await run(db, auth, verified('c'), { role: 'company', roleSelected: true, businessName: 'Smile Clinic', subcategoryId: 'health_clinic' });
