@@ -120,10 +120,10 @@ function SelectRoleContent() {
       });
       return;
     }
-    if (!selectedRole || !userProfile) {
+    if (!selectedRole || !categoryKey || !user) {
       toast({
         title: "Selection Required",
-        description: "Please select a business role to continue.",
+        description: !categoryKey ? "Please select a business category to continue." : "Your login session is still loading. Please try again.",
         variant: "destructive",
       });
       return;
@@ -140,7 +140,7 @@ function SelectRoleContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ role: selectedRole, ...(needsBusinessType ? { subcategoryId, subcategoryName: availableSubcategories.find((item) => item.id === subcategoryId)?.name, category: categoryChoices.find((c) => c.id === categoryKey)?.key, businessName: businessName.trim() } : {}) }),
+        body: JSON.stringify({ role: selectedRole, category: categoryChoices.find((c) => c.id === categoryKey)?.key, ...(needsBusinessType ? { subcategoryId, subcategoryName: availableSubcategories.find((item) => item.id === subcategoryId)?.name, businessName: businessName.trim() } : {}) }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Failed to save your role.");
@@ -247,7 +247,7 @@ function SelectRoleContent() {
                   </div>
                 </div>
               )}
-              <Button onClick={handleRoleSelection} disabled={(needsBusinessType && (!subcategoryId || !businessName.trim())) || isLoading} className="w-full h-12 text-base">
+              <Button onClick={handleRoleSelection} disabled={!categoryKey || (needsBusinessType && (!subcategoryId || !businessName.trim())) || isLoading} className="w-full h-12 text-base">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Continue to Dashboard
               </Button>
