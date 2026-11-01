@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     // Step 2 of onboarding: every business role (except the Doctor shortcut) must also choose a business type.
     const needsBusinessType = config.storedRole !== 'buyer' && !config.subcategoryId;
     const businessName = typeof body.businessName === 'string' ? body.businessName.trim().slice(0, 120) : '';
+    const requestedCategory = typeof body.category === 'string' ? body.category.trim().slice(0, 100) : '';
     let chosen: ReturnType<typeof findSubcategory> = null;
     let chosenCategoryId: string | undefined;
     if (needsBusinessType) {
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       update.subcategoryId = config.subcategoryId;
       update.subcategoryName = config.subcategoryName;
     } else {
+      if (config.storedRole === 'buyer' && requestedCategory) update.category = requestedCategory;
       update.subcategoryId = FieldValue.delete();
       update.subcategoryName = FieldValue.delete();
     }
