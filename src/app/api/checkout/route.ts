@@ -8,7 +8,7 @@ import { createPendingTransaction } from '@/lib/server/payment-ledger';
 
 export const runtime = 'nodejs';
 
-type Method = 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal' | 'cod';
+type Method = 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal' | 'safepay' | 'cod';
 
 function jsonError(message: string, status = 400) { return NextResponse.json({ success: false, error: message }, { status }); }
 
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     const appUrl = getAppUrl(request);
     if (method === 'stripe') return createStripePayment(ref, order, snap.id, appUrl, returnPath);
     if (method === 'paypal') return createPayPalPayment(ref, order, snap.id, appUrl, returnPath);
+    if (method === 'safepay') return createSafepayPayment(ref, order, snap.id, appUrl, returnPath);
     if (method === 'jazzcash' || method === 'easypaisa') {
       const configured = process.env[`${method.toUpperCase()}_CHECKOUT_URL`];
       if (!configured) return jsonError(`${method === 'jazzcash' ? 'JazzCash' : 'Easypaisa'} sandbox credentials/checkout endpoint are not configured yet. The order remains safely pending payment.`, 503);
@@ -88,6 +89,29 @@ async function createStripePayment(ref: DocumentReference, order: any, orderId: 
   if (!response.ok) return jsonError((data?.error?.message || 'Stripe could not create the payment.'), 502);
   await ref.update({ paymentProvider: 'stripe', paymentSessionId: data.id, updatedAt: new Date() });
   return NextResponse.json({ success: true, provider: 'stripe', checkoutUrl: data.url, paymentSessionId: data.id });
+}
+
+async function createSafepayPayment(ref: DocumentReference, order: any, orderId: string, appUrl: string, returnPath: { success: string; cancel: string }) {
+  const secret = process.env.SAFEPAY_SECRET_KEY;
+  const client = process.env.SAFEPAY_PUBLIC_KEY;
+  const base = (process.env.SAFEPAY_API_BASE_URL || 'https://sandbox.api.getsafepay.com').replace(/\/$/, '');
+  const total = Number(order.totalCost);
+  const currency = String(order.currency || 'PKR').trim().toUpperCase();
+  if (!secret || !client) return jsonError('Safepay is not configured. Set SAFEPAY_SECRET_KEY and SAFEPAY_PUBLIC_KEY on the server.', 503);
+  if (currency !== 'PKR') return jsonError('Safepay checkout requires PKR orders.', 422);
+  const response = await fetch(`${base}/order/v1/init`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-SFPY-MERCHANT-SECRET': secret }, body: JSON.stringify({ client, amount: Number(total.toFixed(2)), currency, environment: base.includes('sandbox') ? 'sandbox' : 'production' }) });
+  const data = await response.json();
+  const token = data?.data?.token;
+  if (!response.ok || !token) return jsonError(data?.status?.message || 'Safepay could not create the payment.', 502);
+  const checkout = new URL(`${base}/components`);
+  checkout.searchParams.set('env', base.includes('sandbox') ? 'sandbox' : 'production');
+  checkout.searchParams.set('beacon', token);
+  checkout.searchParams.set('source', 'connectlocal');
+  checkout.searchParams.set('order_id', orderId);
+  checkout.searchParams.set('redirect_url', `${appUrl}${returnPath.success}`);
+  checkout.searchParams.set('cancel_url', `${appUrl}${returnPath.cancel}`);
+  await ref.update({ paymentProvider: 'safepay', paymentTracker: token, paymentSessionId: token, updatedAt: new Date() });
+  return NextResponse.json({ success: true, provider: 'safepay', checkoutUrl: checkout.toString(), paymentSessionId: token });
 }
 
 async function createPayPalPayment(ref: DocumentReference, order: any, orderId: string, appUrl: string, returnPath: { success: string; cancel: string }) {
