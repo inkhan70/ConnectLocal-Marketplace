@@ -24,17 +24,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useAuth } from "@/firebase";
 import { bootstrapUserProfile } from "@/lib/bootstrap-client";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { normalizePhone } from "@/lib/contact";
-import { getBuiltInCategories, getSubcategoriesForCategory, resolveCategoryKey } from "@/lib/subcategories";
-import type { SubcategoryOption } from "@/lib/subcategories";
+import { useLiveCategories } from "@/hooks/use-live-categories";
+import { categoryKeyFor, childCategories, normText, topLevelCategories } from "@/lib/category-live";
 
-interface CategoriesDoc {
-    list: { id: string; name: string; icon?: string; order: number }[];
-}
+type SubcategoryOption = { id: string; name: string };
 
 const formSchema = z.object({
   email: z.string().email({ message: "A valid email is required." }).min(1, { message: "Email is required." }),
@@ -106,46 +103,35 @@ export function SignupForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [subcategories, setSubcategories] = useState<SubcategoryOption[]>([]);
     const auth = useAuth();
-    const firestore = useFirestore();
     const { signInWithGoogle, isGoogleLoading } = useGoogleAuth("signup", searchParams.get("redirect"));
     
-    const categoriesDocRef = useMemoFirebase(() => doc(firestore, 'app_config', 'categories'), [firestore]);
-    const { data: categoriesDoc, isLoading: loadingCategories, error } = useDoc<CategoriesDoc>(categoriesDocRef);
-
-    // Category choices. The admin-managed list (app_config/categories) controls labels and order, but every entry is
-    // mapped to a built-in category key, and any built-in category the admin list lacks is appended. The dropdown is
-    // therefore never empty and every choice has business types to pick from.
-    const categoryOptions = useMemo(() => {
-        const options: { key: string; label: string; order: number }[] = [];
-        const seen = new Set<string>();
-        for (const cat of categoriesDoc?.list || []) {
-            const key = resolveCategoryKey(cat.id) || resolveCategoryKey(cat.name);
-            if (!key || seen.has(key)) continue;
-            seen.add(key);
-            options.push({ key, label: cat.name, order: cat.order ?? 999 });
-        }
-        for (const builtIn of getBuiltInCategories()) {
-            if (!seen.has(builtIn.key)) options.push({ key: builtIn.key, label: builtIn.label, order: 1000 });
-        }
-        return options.sort((x, y) => x.order - y.order);
-    }, [categoriesDoc]);
+    // Categories come from the live admin list (the same one guests browse), so a new member can only register under a
+    // category/business type that the guest pages actually list.
+    const { list: liveCategories } = useLiveCategories();
+    const categoryOptions = useMemo(
+        () => topLevelCategories(liveCategories).map((cat) => ({ key: categoryKeyFor(cat), label: cat.name })),
+        [liveCategories],
+    );
+    const subsFor = (categoryKey: string | null | undefined): SubcategoryOption[] => {
+        const parent = topLevelCategories(liveCategories).find((p) => normText(categoryKeyFor(p)) === normText(categoryKey) || normText(p.name) === normText(categoryKey));
+        return parent ? childCategories(liveCategories, parent.id).map((c) => ({ id: c.id, name: c.name })) : [];
+    };
 
     // Pre-select category / business type when arriving from a category page (?category=...&subcategory=...).
     useEffect(() => {
-        const key = resolveCategoryKey(searchParams.get('category'));
+        const requested = searchParams.get('category');
         const subcategoryParam = searchParams.get('subcategory');
-        if (!key) return;
-        form.setValue('category', key);
-        const subs = getSubcategoriesForCategory(key);
+        const parent = topLevelCategories(liveCategories).find((p) => normText(categoryKeyFor(p)) === normText(requested) || normText(p.name) === normText(requested));
+        if (!parent) return;
+        form.setValue('category', categoryKeyFor(parent));
+        const subs = subsFor(categoryKeyFor(parent));
         setSubcategories(subs);
         const selected = subcategoryParam ? subs.find(s => s.id === subcategoryParam) : undefined;
         if (selected) {
             form.setValue('subcategoryId', selected.id);
             form.setValue('subcategoryName', selected.name);
-            // Only adopt the business type's usual role when the person has not picked one themselves.
-            if (!form.getValues('role')) form.setValue('role', selected.role);
         }
-    }, [searchParams]);
+    }, [searchParams, liveCategories]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -166,7 +152,7 @@ export function SignupForm() {
     // Update business types when the category changes.
     useEffect(() => {
         if (!selectedCategory) { setSubcategories([]); return; }
-        const subs = getSubcategoriesForCategory(selectedCategory);
+        const subs = subsFor(selectedCategory);
         setSubcategories(subs);
         const current = form.getValues('subcategoryId');
         if (current && !subs.some(sub => sub.id === current)) {
@@ -178,7 +164,7 @@ export function SignupForm() {
             form.setValue('subcategoryId', subs[0].id, { shouldValidate: true });
             form.setValue('subcategoryName', subs[0].name);
         }
-    }, [selectedCategory]);
+    }, [selectedCategory, liveCategories]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);

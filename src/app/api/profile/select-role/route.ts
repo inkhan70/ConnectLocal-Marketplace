@@ -4,7 +4,7 @@ import { describeServerError, getAdminDb, verifyBearerToken } from '@/lib/server
 import { findSubcategory, getDashboardType } from '@/lib/subcategories';
 import { DEFAULT_SUBSCRIPTION_PLANS } from '@/lib/subscription-domain';
 import { readRealtimeCategories } from '@/lib/server/category-rtdb';
-import { categoryKeyFor, resolveLiveSubcategory } from '@/lib/category-live';
+import { resolveChosenType } from '@/lib/category-live';
 
 export const runtime = 'nodejs';
 
@@ -35,19 +35,15 @@ export async function POST(request: Request) {
       const subcategoryId = typeof body.subcategoryId === 'string' ? body.subcategoryId : '';
       // The LIVE admin list is the source of truth: it is the same list guests browse, so whatever a member
       // registers under is exactly what the guest category page asks for.
-      let live: ReturnType<typeof resolveLiveSubcategory> = null;
+      let resolved: ReturnType<typeof resolveChosenType> = null;
       try {
-        live = resolveLiveSubcategory(await readRealtimeCategories(), subcategoryId);
+        resolved = resolveChosenType(await readRealtimeCategories(), subcategoryId, config.storedRole);
       } catch (error) {
         console.error('Live category lookup failed; falling back to the built-in catalogue:', error);
       }
-      if (live) {
-        const categoryKey = categoryKeyFor(live.parent);
-        chosenCategoryId = live.parent.id;
-        const dashboardType = categoryKey === 'automotive' ? 'automotive'
-          : categoryKey === 'medical' && config.storedRole !== 'services' ? 'health'
-          : config.dashboardType;
-        chosen = { categoryKey, option: { id: live.child.id, name: live.child.name, role: config.storedRole as any, dashboardType } } as any;
+      if (resolved) {
+        chosenCategoryId = resolved.categoryId;
+        chosen = { categoryKey: resolved.categoryKey, option: resolved.option } as any;
       } else {
         chosen = findSubcategory(subcategoryId);
       }

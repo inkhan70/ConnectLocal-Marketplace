@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb, requireAdmin, classifyError } from '@/lib/server/firebase-admin';
 import { makeCategorySlug, normalizeCategoryName, validateCategoryPayload, type CategoryItem } from '@/lib/category-management';
 import { readRealtimeCategories, writeRealtimeCategories } from '@/lib/server/category-rtdb';
+import { countMembersByCategory } from '@/lib/category-live';
 
 export const runtime = 'nodejs';
 
@@ -57,7 +58,16 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
     const { list } = await getCategoryDocument();
-    return NextResponse.json({ list: toComparableList(list) });
+    // How many members sit under each category, so stale/unused ones are easy to spot and Disable.
+    let counts: Record<string, number> = {};
+    try {
+      const snap = await getAdminDb().collection('users').where('role', 'in', ['company', 'wholesaler', 'distributor', 'shopkeeper', 'services'])
+        .select('category', 'categoryId', 'subcategoryId', 'subcategoryName').limit(5000).get();
+      counts = countMembersByCategory(list, snap.docs.map((d) => d.data()));
+    } catch (error) {
+      console.error('Category member counts failed:', error);
+    }
+    return NextResponse.json({ list: toComparableList(list), counts });
   } catch (error) {
     const result = classifyError(error);
     return NextResponse.json({ error: result.message, code: result.code }, { status: result.status });
