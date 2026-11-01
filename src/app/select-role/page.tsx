@@ -7,7 +7,7 @@ import { bootstrapUserProfile } from "@/lib/bootstrap-client";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useLiveCategories } from "@/hooks/use-live-categories";
 import { categoryKeyFor, childCategories, topLevelCategories } from "@/lib/category-live";
@@ -42,10 +42,12 @@ function SelectRoleContent() {
 
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [selectedRole, setSelectedRole] = useState<string>("");
+  // New registrations start directly on the business setup screen. The selected
+  // live business type determines the directory placement; shopkeeper is the
+  // default role for retail listings.
+  const [selectedRole, setSelectedRole] = useState<string>("shopkeeper");
   const [isLoading, setIsLoading] = useState(false);
-  // Step 1 = choose role, step 2 = choose business type (every business role except buyer / doctor).
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(2);
   const [categoryKey, setCategoryKey] = useState<string>("");
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
@@ -167,10 +169,10 @@ function SelectRoleContent() {
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline">Select Your Role</CardTitle>
+          <CardTitle className="text-3xl font-headline">Set Up Your Business</CardTitle>
           <CardDescription className="text-base mt-2">
             Welcome, {userProfile?.fullName || userProfile?.email}! <br />
-            Choose how you'd like to use ConnectLocal to continue.
+            Tell us about your business to continue.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -201,9 +203,6 @@ function SelectRoleContent() {
           ) : (
             <>
               {/* Step 2: business type */}
-              <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" /> Back to role
-              </button>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Business name</label>
                 <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Al-Noor Pharmacy" maxLength={120} />
