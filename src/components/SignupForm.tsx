@@ -29,7 +29,7 @@ import { bootstrapUserProfile } from "@/lib/bootstrap-client";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { normalizePhone } from "@/lib/contact";
 import { useLiveCategories } from "@/hooks/use-live-categories";
-import { categoryKeyFor, childCategories, normText, topLevelCategories } from "@/lib/category-live";
+import { categoryKeyFor, childCategories, normText, roleForSelection, topLevelCategories } from "@/lib/category-live";
 
 type SubcategoryOption = { id: string; name: string };
 
@@ -151,15 +151,8 @@ export function SignupForm() {
     const selectedRole = form.watch("role");
     const selectedCategory = form.watch("category");
 
-    const roleForCategory = (categoryKey: string) => {
-        const normalized = normText(categoryKey);
-        if (normalized.includes("buyer") || normalized.includes("customer")) return "buyer" as const;
-        if (normalized.includes("wholesale")) return "wholesaler" as const;
-        if (normalized.includes("distribut")) return "distributor" as const;
-        if (normalized.includes("producer") || normalized.includes("company") || normalized.includes("manufactur")) return "company" as const;
-        if (normalized.includes("service")) return "services" as const;
-        return "shopkeeper" as const;
-    };
+    // One shared rule (also used by Google sign-up and the server): Buyer / Customer / Collector => buyer role.
+    const roleForCategory = (categoryKey: string, subcategoryName?: string) => roleForSelection(categoryKey, subcategoryName);
 
     // Update business types when the category changes.
     useEffect(() => {
@@ -382,6 +375,7 @@ export function SignupForm() {
                           const selected = subcategories.find(s => s.id === value);
                           if (selected) {
                             form.setValue('subcategoryName', selected.name);
+                            form.setValue('role', roleForCategory(selectedCategory || '', selected.name), { shouldValidate: true });
                           }
                         }} value={field.value || ""}>
                           <FormControl>

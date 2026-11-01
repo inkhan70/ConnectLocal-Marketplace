@@ -4,7 +4,7 @@ import { describeServerError, getAdminDb, verifyBearerToken } from '@/lib/server
 import { findSubcategory, getDashboardType } from '@/lib/subcategories';
 import { DEFAULT_SUBSCRIPTION_PLANS } from '@/lib/subscription-domain';
 import { readRealtimeCategories } from '@/lib/server/category-rtdb';
-import { resolveChosenType } from '@/lib/category-live';
+import { resolveChosenType, roleForSelection } from '@/lib/category-live';
 
 export const runtime = 'nodejs';
 
@@ -23,33 +23,40 @@ export async function POST(request: Request) {
     const decoded = await verifyBearerToken(request);
     const body = await request.json().catch(() => ({}));
     const requestedRole = typeof body.role === 'string' ? body.role : '';
-    const config = ROLE_CONFIG[requestedRole];
+    let config = ROLE_CONFIG[requestedRole];
     if (!config) return NextResponse.json({ error: 'Invalid role selection.' }, { status: 400 });
 
-    // Step 2 of onboarding: every business role (except the Doctor shortcut) must also choose a business type.
-    const needsBusinessType = config.storedRole !== 'buyer' && !config.subcategoryId;
+    const subcategoryId = typeof body.subcategoryId === 'string' ? body.subcategoryId : '';
     const businessName = typeof body.businessName === 'string' ? body.businessName.trim().slice(0, 120) : '';
     const requestedCategory = typeof body.category === 'string' ? body.category.trim().slice(0, 100) : '';
+
+    // Resolve the chosen business type against the LIVE admin list (the same list guests browse).
+    // Done for every role: a buyer / collector also keeps the type they picked.
+    let liveList: Awaited<ReturnType<typeof readRealtimeCategories>> = [];
+    if (subcategoryId) {
+      try { liveList = await readRealtimeCategories(); } catch (error) { console.error('Live category lookup failed; falling back to the built-in catalogue:', error); }
+    }
+    let resolved = subcategoryId ? resolveChosenType(liveList, subcategoryId, config.storedRole) : null;
+    // The server decides buyer-type choices itself: picking Buyer / Customer / Collector always makes a buyer,
+    // whatever role the browser sent, so these members get the buyer dashboard (never shopkeeper / services).
+    if (resolved && !config.subcategoryId && config.storedRole !== 'buyer' && roleForSelection(resolved.categoryName, resolved.option.name) === 'buyer') {
+      config = ROLE_CONFIG.buyer;
+      resolved = resolveChosenType(liveList, subcategoryId, 'buyer');
+    }
+
+    // Business roles (except the Doctor shortcut) must choose a business type; buyers may.
+    const needsBusinessType = config.storedRole !== 'buyer' && !config.subcategoryId;
     let chosen: ReturnType<typeof findSubcategory> = null;
     let chosenCategoryId: string | undefined;
-    if (needsBusinessType) {
-      const subcategoryId = typeof body.subcategoryId === 'string' ? body.subcategoryId : '';
-      // The LIVE admin list is the source of truth: it is the same list guests browse, so whatever a member
-      // registers under is exactly what the guest category page asks for.
-      let resolved: ReturnType<typeof resolveChosenType> = null;
-      try {
-        resolved = resolveChosenType(await readRealtimeCategories(), subcategoryId, config.storedRole);
-      } catch (error) {
-        console.error('Live category lookup failed; falling back to the built-in catalogue:', error);
-      }
+    if (needsBusinessType || (config.storedRole === 'buyer' && subcategoryId)) {
       if (resolved) {
         chosenCategoryId = resolved.categoryId;
         chosen = { categoryKey: resolved.categoryKey, option: resolved.option } as any;
       } else {
         chosen = findSubcategory(subcategoryId);
       }
-      if (!chosen) return NextResponse.json({ error: 'Please choose a business type.' }, { status: 400 });
-      if (!businessName) return NextResponse.json({ error: 'Please enter your business name.' }, { status: 400 });
+      if (!chosen && needsBusinessType) return NextResponse.json({ error: 'Please choose a business type.' }, { status: 400 });
+      if (needsBusinessType && !businessName) return NextResponse.json({ error: 'Please enter your business name.' }, { status: 400 });
     }
 
     const db = getAdminDb();
@@ -69,7 +76,7 @@ export async function POST(request: Request) {
     const update: Record<string, unknown> = {
       role: config.storedRole,
       // The business type decides which dashboard layout (health, automotive, food, ...) the member sees.
-      dashboardType: chosen ? chosen.option.dashboardType : config.dashboardType,
+      dashboardType: config.storedRole === 'buyer' ? 'buyer' : chosen ? chosen.option.dashboardType : config.dashboardType,
       needsRoleSelection: false,
       roleSelectionCompleted: true,
       roleSelectedAt: FieldValue.serverTimestamp(),

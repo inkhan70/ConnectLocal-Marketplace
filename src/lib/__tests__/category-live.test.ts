@@ -1,5 +1,5 @@
 import { createDefaultCategoryTaxonomy } from '@/lib/category-taxonomy';
-import { businessMatchesCategory, placeBusiness, resolveLiveSubcategory, categoryKeyFor, topLevelCategories, childCategories, resolveChosenType, countMembersByCategory } from '@/lib/category-live';
+import { businessMatchesCategory, placeBusiness, resolveLiveSubcategory, categoryKeyFor, topLevelCategories, childCategories, resolveChosenType, countMembersByCategory, roleForSelection, dashboardTypeFor } from '@/lib/category-live';
 import type { CategoryItem } from '@/lib/category-management';
 
 const base = createDefaultCategoryTaxonomy();
@@ -63,5 +63,35 @@ describe('live category pipeline', () => {
     expect(counts['cat_x1']).toBe(1);
     expect(counts['cat_x1_sub']).toBe(1);
     expect(counts['cat_4']).toBe(1);
+  });
+
+  it('Buyer / Customer / Collector choices always resolve to the buyer role, even when the category name is unrelated', () => {
+    expect(roleForSelection('Buyer')).toBe('buyer');
+    expect(roleForSelection('Customers')).toBe('buyer');
+    expect(roleForSelection('Collector')).toBe('buyer');
+    expect(roleForSelection('Antiques', 'Collector')).toBe('buyer');
+    expect(roleForSelection('Antiques', 'Collectors')).toBe('buyer');
+    // Business categories keep their business roles.
+    expect(roleForSelection('Food')).toBe('shopkeeper');
+    expect(roleForSelection('Wholesale Foods')).toBe('wholesaler');
+    expect(roleForSelection('Professional Services')).toBe('services');
+    expect(roleForSelection('Producer / Company')).toBe('company');
+  });
+
+  it('buyers always get the buyer dashboard type, whatever category they chose', () => {
+    expect(dashboardTypeFor('medical', 'buyer')).toBe('buyer');
+    expect(dashboardTypeFor('automotive', 'buyer')).toBe('buyer');
+    expect(dashboardTypeFor('food', 'shopkeeper')).toBe('shopkeeper');
+  });
+
+  it('a collector subcategory resolves with the buyer dashboard', () => {
+    const withCollector: CategoryItem[] = [
+      ...live,
+      { id: 'cat_c', name: 'Antiques', icon: 'MoreHorizontal', order: 98, slug: 'antiques', parentId: null, isActive: true },
+      { id: 'cat_c_sub', name: 'Collector', icon: 'MoreHorizontal', order: 1, slug: 'collector', parentId: 'cat_c', isActive: true },
+    ];
+    const probe = resolveChosenType(withCollector, 'cat_c_sub', 'shopkeeper')!;
+    expect(roleForSelection(probe.categoryName, probe.option.name)).toBe('buyer');
+    expect(resolveChosenType(withCollector, 'cat_c_sub', 'buyer')!.option.dashboardType).toBe('buyer');
   });
 });

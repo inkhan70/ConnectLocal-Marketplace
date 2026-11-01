@@ -144,8 +144,29 @@ export function businessMatchesCategory(
   return placement.parent?.id === parent.id;
 }
 
+export type MemberRole = 'buyer' | 'wholesaler' | 'distributor' | 'company' | 'services' | 'shopkeeper';
+
+const BUYER_WORDS = /\b(buyer|customer|collector|shopper)s?\b/;
+
+/**
+ * The role a member gets from the category / business type they pick. ONE rule shared by Google sign-up, email
+ * sign-up and the server. Buyer-type choices (Buyer, Customer, Collector, Shopper) are checked first and also on the
+ * business type, so a "Collector" can never be turned into a shopkeeper or service provider.
+ */
+export function roleForSelection(categoryName?: string | null, subcategoryName?: string | null): MemberRole {
+  const category = normText(categoryName);
+  const sub = normText(subcategoryName);
+  if (BUYER_WORDS.test(sub) || BUYER_WORDS.test(category)) return 'buyer';
+  if (category.includes('wholesale')) return 'wholesaler';
+  if (category.includes('distribut')) return 'distributor';
+  if (category.includes('producer') || category.includes('company') || category.includes('manufactur')) return 'company';
+  if (category.includes('service')) return 'services';
+  return 'shopkeeper';
+}
+
 /** Dashboard layout for a member, from the category they chose and their role. */
 export function dashboardTypeFor(categoryKey: string, role: string): string {
+  if (role === 'buyer') return 'buyer';
   if (categoryKey === 'automotive') return 'automotive';
   if (categoryKey === 'medical' && role !== 'services') return 'health';
   if (role === 'shopkeeper') return 'shopkeeper';
@@ -153,14 +174,14 @@ export function dashboardTypeFor(categoryKey: string, role: string): string {
   return 'business';
 }
 
-export type ChosenType = { categoryKey: string; categoryId: string; option: { id: string; name: string; role: string; dashboardType: string } };
+export type ChosenType = { categoryKey: string; categoryId: string; categoryName: string; option: { id: string; name: string; role: string; dashboardType: string } };
 
 /** Validates a business-type id against the live list and returns everything the server stores for the member. */
 export function resolveChosenType(list: CategoryItem[] | null | undefined, subcategoryId: string | null | undefined, role: string): ChosenType | null {
   const live = resolveLiveSubcategory(list, subcategoryId);
   if (!live) return null;
   const categoryKey = categoryKeyFor(live.parent);
-  return { categoryKey, categoryId: live.parent.id, option: { id: live.child.id, name: live.child.name, role, dashboardType: dashboardTypeFor(categoryKey, role) } };
+  return { categoryKey, categoryId: live.parent.id, categoryName: live.parent.name, option: { id: live.child.id, name: live.child.name, role, dashboardType: dashboardTypeFor(categoryKey, role) } };
 }
 
 /** Number of members placed under each live category/subcategory id (used by the admin screen). */
