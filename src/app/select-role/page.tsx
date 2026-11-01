@@ -45,7 +45,7 @@ function SelectRoleContent() {
   // New registrations start directly on the business setup screen. The selected
   // live business type determines the directory placement; shopkeeper is the
   // default role for retail listings.
-  const [selectedRole, setSelectedRole] = useState<string>("shopkeeper");
+  const [selectedRole, setSelectedRole] = useState<string>("buyer");
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(2);
   const [categoryKey, setCategoryKey] = useState<string>("");
@@ -120,10 +120,11 @@ function SelectRoleContent() {
       });
       return;
     }
-    if (!selectedRole || !categoryKey || !user) {
+    const isBuyer = selectedRole === "buyer";
+    if (!selectedRole || (!isBuyer && !categoryKey) || !user) {
       toast({
         title: "Selection Required",
-        description: !categoryKey ? "Please select a business category to continue." : "Your login session is still loading. Please try again.",
+        description: !user ? "Your login session is still loading. Please try again." : "Please select a business category to continue.",
         variant: "destructive",
       });
       return;
@@ -247,7 +248,7 @@ function SelectRoleContent() {
                   </div>
                 </div>
               )}
-              <Button onClick={handleRoleSelection} disabled={!categoryKey || (needsBusinessType && (!subcategoryId || !businessName.trim())) || isLoading} className="w-full h-12 text-base">
+              <Button onClick={handleRoleSelection} disabled={(selectedRole !== "buyer" && !categoryKey) || (needsBusinessType && (!subcategoryId || !businessName.trim())) || isLoading} className="w-full h-12 text-base">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Continue to Dashboard
               </Button>
