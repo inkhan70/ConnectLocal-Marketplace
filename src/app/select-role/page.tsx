@@ -247,7 +247,7 @@ function SelectRoleContent() {
                   </div>
                 </div>
               )}
-              <Button onClick={handleRoleSelection} disabled={!subcategoryId || !businessName.trim() || isLoading} className="w-full h-12 text-base">
+              <Button onClick={handleRoleSelection} disabled={(needsBusinessType && (!subcategoryId || !businessName.trim())) || isLoading} className="w-full h-12 text-base">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Continue to Dashboard
               </Button>
