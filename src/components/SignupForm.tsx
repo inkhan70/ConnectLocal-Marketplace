@@ -123,8 +123,10 @@ export function SignupForm() {
         const subcategoryParam = searchParams.get('subcategory');
         const parent = topLevelCategories(liveCategories).find((p) => normText(categoryKeyFor(p)) === normText(requested) || normText(p.name) === normText(requested));
         if (!parent) return;
-        form.setValue('category', categoryKeyFor(parent));
-        const subs = subsFor(categoryKeyFor(parent));
+        const categoryKey = categoryKeyFor(parent);
+        form.setValue('category', categoryKey);
+        form.setValue('role', roleForCategory(categoryKey), { shouldValidate: true });
+        const subs = subsFor(categoryKey);
         setSubcategories(subs);
         const selected = subcategoryParam ? subs.find(s => s.id === subcategoryParam) : undefined;
         if (selected) {
@@ -148,6 +150,16 @@ export function SignupForm() {
 
     const selectedRole = form.watch("role");
     const selectedCategory = form.watch("category");
+
+    const roleForCategory = (categoryKey: string) => {
+        const normalized = normText(categoryKey);
+        if (normalized.includes("buyer") || normalized.includes("customer")) return "buyer" as const;
+        if (normalized.includes("wholesale")) return "wholesaler" as const;
+        if (normalized.includes("distribut")) return "distributor" as const;
+        if (normalized.includes("producer") || normalized.includes("company") || normalized.includes("manufactur")) return "company" as const;
+        if (normalized.includes("service")) return "services" as const;
+        return "shopkeeper" as const;
+    };
 
     // Update business types when the category changes.
     useEffect(() => {
@@ -243,29 +255,35 @@ export function SignupForm() {
           <div className="relative mb-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase bg-background px-2 text-muted-foreground">Or</div></div>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                      <FormItem>
-                      <FormLabel>{t('signup.role')}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                          <SelectTrigger>
-                              <SelectValue placeholder={t('signup.role_placeholder')} />
-                          </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                              <SelectItem value="buyer">Buyer / Customer</SelectItem>
-                              <SelectItem value="company">{t('signup.role_company')}</SelectItem>
-                              <SelectItem value="wholesaler">{t('signup.role_wholesaler')}</SelectItem>
-                              <SelectItem value="distributor">{t('signup.role_distributor')}</SelectItem>
-                              <SelectItem value="shopkeeper">{t('signup.role_shopkeeper')}</SelectItem>
-                              <SelectItem value="services">Service Provider</SelectItem>
-                          </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      </FormItem>
-                  )}
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Category</FormLabel>
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        form.setValue("role", roleForCategory(value), { shouldValidate: true });
+                        form.setValue("subcategoryId", "");
+                        form.setValue("subcategoryName", "");
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a live category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categoryOptions.map((category) => (
+                          <SelectItem key={category.key} value={category.key}>{category.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Categories are managed by the administrator and updated live.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -346,28 +364,6 @@ export function SignupForm() {
                           <Input type="tel" inputMode="tel" autoComplete="tel" placeholder="+92 300 1234567" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormDescription>Customers will tap WhatsApp / Call to reach this number. Include the country code. You can change it later in Settings.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your primary business category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categoryOptions.map(cat => (
-                                <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
