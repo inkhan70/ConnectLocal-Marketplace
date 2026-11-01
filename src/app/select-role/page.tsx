@@ -56,6 +56,15 @@ function SelectRoleContent() {
   // only register under a category/business type that the guest pages actually link to.
   const { list: liveCategories, isLoading: categoriesLoading, error: categoriesError } = useLiveCategories();
   const categoryChoices = useMemo(() => topLevelCategories(liveCategories).map((category) => ({ id: category.id, key: categoryKeyFor(category), name: category.name })), [liveCategories]);
+  const roleForCategory = (value: string) => {
+    const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+    if (normalized.includes("buyer") || normalized.includes("customer")) return "buyer";
+    if (normalized.includes("wholesale")) return "wholesaler";
+    if (normalized.includes("distribut")) return "distributor";
+    if (normalized.includes("producer") || normalized.includes("company") || normalized.includes("manufactur")) return "company";
+    if (normalized.includes("service")) return "services";
+    return "shopkeeper";
+  };
   const availableSubcategories = useMemo(() => childCategories(liveCategories, categoryKey).map((child) => ({ id: child.id, name: child.name })), [liveCategories, categoryKey]);
 
   const finished = useRef(false);
@@ -211,7 +220,7 @@ function SelectRoleContent() {
                 <label className="text-sm font-medium">Business category</label>
                 {categoriesLoading && <p className="text-xs text-muted-foreground">Loading categories…</p>}
                 {categoriesError && !categoriesLoading && categoryChoices.length === 0 && <p className="text-xs text-destructive">Could not load categories. Please refresh and try again.</p>}
-                <Select value={categoryKey} onValueChange={(v) => { setCategoryKey(v); setSubcategoryId(""); }}>
+                <Select value={categoryKey} onValueChange={(v) => { setCategoryKey(v); setSelectedRole(roleForCategory(categoryChoices.find((category) => category.key === v)?.name || v)); setSubcategoryId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
                   <SelectContent>
                     {categoryChoices.map((category) => (
