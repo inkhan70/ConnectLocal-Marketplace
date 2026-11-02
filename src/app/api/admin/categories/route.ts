@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb, requireAdmin, classifyError } from '@/lib/server/firebase-admin';
 import { makeCategorySlug, normalizeCategoryName, validateCategoryPayload, type CategoryItem } from '@/lib/category-management';
 import { readRealtimeCategories, writeRealtimeCategories } from '@/lib/server/category-rtdb';
-import { countMembersByCategory } from '@/lib/category-live';
+import { countMembersByCategory, findUnplacedMembers } from '@/lib/category-live';
 
 export const runtime = 'nodejs';
 
@@ -60,14 +60,17 @@ export async function GET(request: NextRequest) {
     const { list } = await getCategoryDocument();
     // How many members sit under each category, so stale/unused ones are easy to spot and Disable.
     let counts: Record<string, number> = {};
+    let unplaced: Array<Record<string, any>> = [];
     try {
       const snap = await getAdminDb().collection('users').where('role', 'in', ['company', 'wholesaler', 'distributor', 'shopkeeper', 'services'])
         .select('category', 'categoryId', 'subcategoryId', 'subcategoryName').limit(5000).get();
-      counts = countMembersByCategory(list, snap.docs.map((d) => d.data()));
+      const members = snap.docs.map((d) => ({ uid: d.id, ...d.data() })) as any[];
+      counts = countMembersByCategory(list, members);
+      unplaced = findUnplacedMembers(list, members).slice(0, 100).map((m: any) => ({ uid: m.uid, businessName: m.businessName || m.fullName || '', role: m.role, category: m.category || '', subcategoryId: m.subcategoryId || '', subcategoryName: m.subcategoryName || '' }));
     } catch (error) {
       console.error('Category member counts failed:', error);
     }
-    return NextResponse.json({ list: toComparableList(list), counts });
+    return NextResponse.json({ list: toComparableList(list), counts, unplaced });
   } catch (error) {
     const result = classifyError(error);
     return NextResponse.json({ error: result.message, code: result.code }, { status: result.status });

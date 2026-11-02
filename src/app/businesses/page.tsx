@@ -16,7 +16,9 @@ import { UserProfile } from "@/contexts/AuthContext";
 import { useFavorites, FavoriteBusiness } from "@/contexts/FavoritesContext";
 import { cn } from "@/lib/utils";
 import { useLiveCategories } from '@/hooks/use-live-categories';
-import { businessMatchesCategory, normText, resolveLiveSubcategory, topLevelCategories, categoryKeyFor } from '@/lib/category-live';
+import { filterBusinessesForRequest, normText, resolveLiveSubcategory, topLevelCategories, categoryKeyFor } from '@/lib/category-live';
+
+const safeDecode = (value: string) => { try { return decodeURIComponent(value); } catch { return value; } };
 import { 
   calculateDistance, 
   isValidCoordinate,
@@ -53,10 +55,11 @@ function BusinessesContent() {
   // Category/subcategory matching runs against the live admin list (see lib/category-live.ts), the same list the
   // member picked from during onboarding, so the two can no longer drift apart.
   const { list: liveCategories, isLoading: categoriesLoading } = useLiveCategories();
-  const category = categoryParam === 'all' ? 'all' : normText(decodeURIComponent(categoryParam)).replace(/ /g, '-');
+  const category = categoryParam === 'all' ? 'all' : normText(safeDecode(categoryParam)).replace(/ /g, '-');
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
 
   const [displayedBusinesses, setDisplayedBusinesses] = useState<Business[]>([]);
+  const [fallbackCategory, setFallbackCategory] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -108,8 +111,11 @@ function BusinessesContent() {
   useEffect(() => {
     if (!fetchedBusinesses) return;
 
-    const processedBusinesses: Business[] = fetchedBusinesses
-      .filter((biz) => businessMatchesCategory(liveCategories, biz as any, { categoryParam, subcategoryParam }))
+    // Exact matches first. If nobody matches the chosen subcategory exactly, members of the same category whose saved
+    // business type was renamed/removed by the admin are shown instead of an empty page (see filterBusinessesForRequest).
+    const result = filterBusinessesForRequest(liveCategories, fetchedBusinesses as any[], { categoryParam, subcategoryParam });
+    setFallbackCategory(result.mode === 'fallback' ? result.fallbackCategoryName || null : null);
+    const processedBusinesses: Business[] = (result.matches as any[])
       .map((biz) => ({
         ...biz,
         id: biz.uid,
@@ -152,8 +158,8 @@ function BusinessesContent() {
 
 
   const roleTitle = t(`roles.${roleParam}`); // Use original plural param for display
-  const liveSub = subcategoryParam ? resolveLiveSubcategory(liveCategories, decodeURIComponent(subcategoryParam)) : null;
-  const liveParent = topLevelCategories(liveCategories).find((p) => normText(p.name) === normText(decodeURIComponent(categoryParam)) || normText(categoryKeyFor(p)) === normText(decodeURIComponent(categoryParam)));
+  const liveSub = subcategoryParam ? resolveLiveSubcategory(liveCategories, safeDecode(subcategoryParam)) : null;
+  const liveParent = topLevelCategories(liveCategories).find((p) => normText(p.name) === normText(safeDecode(categoryParam)) || normText(categoryKeyFor(p)) === normText(safeDecode(categoryParam)));
   const categoryTitle = liveSub ? `${liveSub.parent.name} · ${liveSub.child.name}` : liveParent ? liveParent.name : category === 'all' ? 'All Businesses' : capitalize(category.replace(/-/g, ' '));
   const isLocationEnabled = !!userLocation;
   const hasNearbyResults = isLocationEnabled && displayedBusinesses.some((biz) => biz.distance !== undefined);
@@ -170,6 +176,12 @@ function BusinessesContent() {
   const renderContent = () => {
     if (displayedBusinesses.length > 0) {
         return (
+            <>
+            {fallbackCategory && (
+              <p className="mb-6 rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground" role="status">
+                No business is listed under this exact type yet. Showing other businesses registered in {fallbackCategory}.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {displayedBusinesses.map((biz) => {
               const favorite = isFavorite(biz.uid);
@@ -219,6 +231,7 @@ function BusinessesContent() {
               </Card>
             )})}
           </div>
+          </>
         )
     }
     

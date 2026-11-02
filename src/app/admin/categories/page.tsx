@@ -62,6 +62,7 @@ export default function AdminCategoriesPage() {
   const { isAdmin, checking: isAdminChecking } = useIsAdmin();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [unplacedMembers, setUnplacedMembers] = useState<Array<{ uid: string; businessName: string; role: string; category: string; subcategoryName: string; subcategoryId: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState<string>("none");
@@ -104,6 +105,7 @@ export default function AdminCategoriesPage() {
       const list: CategoryItem[] = Array.isArray(payload.list) ? payload.list : [];
       setCategories(list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
       setMemberCounts(payload.counts && typeof payload.counts === 'object' ? payload.counts : {});
+      setUnplacedMembers(Array.isArray(payload.unplaced) ? payload.unplaced : []);
     } catch (error: any) {
       console.error("Failed to load categories:", error);
       toast({ title: "Load failed", description: error.message || "Could not load categories.", variant: "destructive" });
@@ -341,6 +343,28 @@ export default function AdminCategoriesPage() {
             </form>
           </CardContent>
         </Card>
+
+        {unplacedMembers.length > 0 && (
+          <Card className="border-amber-500/50">
+            <CardHeader>
+              <CardTitle>Members not placed in a live subcategory ({unplacedMembers.length})</CardTitle>
+              <CardDescription>
+                These members registered under a business type that no longer exists in the list below (renamed, disabled or removed).
+                Guests see them under their main category when no exact match exists. Re-create or rename a subcategory to match, or ask the member to update their business type.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm">
+                {unplacedMembers.map((member) => (
+                  <li key={member.uid} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                    <span className="font-medium">{member.businessName || member.uid}</span>
+                    <span className="text-muted-foreground">{member.role} · {member.category || 'no category'} · {member.subcategoryName || member.subcategoryId || 'no type saved'}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

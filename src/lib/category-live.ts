@@ -8,6 +8,7 @@
  * saved with an old id (for example `health_clinic`) still resolve to a live subcategory.
  */
 import { makeCategorySlug, type CategoryItem } from './category-management';
+import { resolveCategoryKey } from './subcategories';
 
 export const normText = (value: unknown): string =>
   String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -108,9 +109,12 @@ export function placeBusiness(list: CategoryItem[] | null | undefined, biz: Stor
   const tops = topLevelCategories(all);
   const storedCategory = normText(biz.category);
   const storedCategoryId = String(biz.categoryId || '');
+  const storedSynonym = storedCategory ? resolveCategoryKey(String(biz.category || '')) || '' : '';
   const parent =
     tops.find((p) => storedCategoryId && p.id === storedCategoryId) ||
     tops.find((p) => storedCategory && [normText(categoryKeyFor(p)), normText(p.name), normText(p.id)].includes(storedCategory)) ||
+    // Older profiles use the old category keys (health, food, ...): match the live parent that means the same thing.
+    (storedSynonym ? tops.find((p) => (resolveCategoryKey(categoryKeyFor(p)) || resolveCategoryKey(p.name)) === storedSynonym) : null) ||
     null;
   if (storedName) {
     const pool = parent ? childCategories(all, parent.id) : all.filter((c) => c.parentId);
@@ -129,15 +133,15 @@ export function businessMatchesCategory(
   const all = activeCategories(list);
   const placement = placeBusiness(all, biz);
 
-  const requestedSub = request.subcategoryParam ? resolveLiveSubcategory(all, decodeURIComponent(request.subcategoryParam)) : null;
+  const requestedSub = request.subcategoryParam ? resolveLiveSubcategory(all, safeDecode(request.subcategoryParam)) : null;
   if (request.subcategoryParam) {
     if (requestedSub) return placement.child?.id === requestedSub.child.id;
     // Unknown id (deleted subcategory): fall back to exact stored id/name so nothing is silently hidden.
-    const wanted = normText(decodeURIComponent(request.subcategoryParam));
+    const wanted = normText(safeDecode(request.subcategoryParam));
     return normText(biz.subcategoryId) === wanted || normText(biz.subcategoryName) === wanted;
   }
 
-  const wantedCategory = normText(decodeURIComponent(request.categoryParam || ''));
+  const wantedCategory = normText(safeDecode(request.categoryParam || ''));
   if (!wantedCategory || wantedCategory === 'all') return true;
   const parent = topLevelCategories(all).find((p) => [normText(p.name), normText(categoryKeyFor(p)), normText(p.id)].includes(wantedCategory));
   if (!parent) return normText(biz.category) === wantedCategory;
@@ -193,4 +197,57 @@ export function countMembersByCategory(list: CategoryItem[] | null | undefined, 
     if (child) counts[child.id] = (counts[child.id] || 0) + 1;
   }
   return counts;
+}
+
+const STOP = new Set(['and', 'the', 'for', 'with', 'shop', 'shops', 'store', 'stores', 'services', 'service', 'other', 'general']);
+const tokens = (v: unknown) => normText(v).split(' ').map((t) => t.replace(/s$/, '')).filter((t) => t.length > 2 && !STOP.has(t));
+/** True when two business-type names share a meaningful word ("Restaurants and caterers" ~ "Restaurant / Cafe"). */
+export function similarName(a: unknown, b: unknown): boolean {
+  const left = new Set(tokens(a));
+  return tokens(b).some((t) => left.has(t));
+}
+
+export type DirectoryResult<T> = { matches: T[]; mode: 'exact' | 'fallback' | 'none'; fallbackCategoryName?: string };
+
+/**
+ * What a guest sees after clicking a category (and subcategory).
+ *  - exact:    members placed in that subcategory (plus members whose saved type no longer exists but has a similar name)
+ *  - fallback: nobody matches exactly, so show the members of the same category whose saved business type can no longer
+ *              be found in the live list (renamed / removed by the admin) instead of an empty page. Members that are
+ *              clearly in a DIFFERENT subcategory are never shown here.
+ */
+export function filterBusinessesForRequest<T extends StoredPlacement>(
+  list: CategoryItem[] | null | undefined,
+  businesses: T[],
+  request: { categoryParam?: string; subcategoryParam?: string },
+): DirectoryResult<T> {
+  const all = activeCategories(list);
+  const requested = request.subcategoryParam ? resolveLiveSubcategory(all, safeDecode(request.subcategoryParam)) : null;
+
+  if (!request.subcategoryParam || !requested) {
+    const matches = businesses.filter((biz) => businessMatchesCategory(all, biz, request));
+    return { matches, mode: matches.length ? 'exact' : 'none' };
+  }
+
+  const { parent, child } = requested;
+  const exact: T[] = [];
+  const orphans: T[] = [];
+  for (const biz of businesses) {
+    const placed = placeBusiness(all, biz);
+    if (placed.child?.id === child.id) { exact.push(biz); continue; }
+    if (!placed.child && placed.parent?.id === parent.id) orphans.push(biz);
+  }
+  const similarOrphans = orphans.filter((biz) => similarName(biz.subcategoryName, child.name));
+  if (exact.length || similarOrphans.length) return { matches: [...exact, ...similarOrphans], mode: 'exact' };
+  if (orphans.length) return { matches: orphans, mode: 'fallback', fallbackCategoryName: parent.name };
+  return { matches: [], mode: 'none' };
+}
+
+function safeDecode(value: string): string {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
+/** Members whose saved business type does not map to any live subcategory (for the admin to review). */
+export function findUnplacedMembers<T extends StoredPlacement>(list: CategoryItem[] | null | undefined, members: T[]): T[] {
+  return members.filter((member) => !placeBusiness(list, member).child);
 }
