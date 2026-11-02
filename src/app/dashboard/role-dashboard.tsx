@@ -12,14 +12,16 @@ const content = {
   shopkeeper: { title: "Store workspace", description: "Keep your catalog, stock, orders, and customer conversations moving.", actions: ["Inventory", "Orders", "Customers"] },
   services: { title: "Service workspace", description: "Turn local enquiries into scheduled jobs with a clear service pipeline.", actions: ["New enquiries", "Upcoming jobs", "Service profile"] },
   automotive: { title: "Auto repair workspace", description: "Run your vehicle and engine repair shop with service bookings, job tracking, and parts inventory in one place.", actions: ["Open work orders", "Today's bookings", "Parts to restock"] },
+  pharmacy: { title: "Pharmacy workspace", description: "Manage pharmacy listings, stock, orders, and customer requests.", actions: ["Inventory", "Orders", "Customer requests"] },
+  hotel: { title: "Hotel workspace", description: "Manage rooms, guest requests, availability, and hospitality listings.", actions: ["Reservations", "Guest requests", "Availability"] },
   default: { title: "Business workspace", description: "Manage your listings, orders, customers, and marketplace presence.", actions: ["Listings", "Orders", "Customers"] },
 };
 
 export function RoleDashboard() {
   const { userProfile } = useAuth();
-  const isDoctor = userProfile?.subcategoryId === "health_doctor";
+  const isDoctor = userProfile?.dashboardType === "health" || userProfile?.subcategoryId === "health_doctor";
   const isAutomotive = userProfile?.dashboardType === "automotive" || userProfile?.category?.toLowerCase() === "automotive" || userProfile?.subcategoryId?.includes("automotive");
-  const kind = isDoctor ? "doctor" : isAutomotive ? "automotive" : userProfile?.role === "shopkeeper" ? "shopkeeper" : userProfile?.role === "services" ? "services" : "default";
+  const kind = isDoctor ? "doctor" : isAutomotive ? "automotive" : userProfile?.dashboardType === "pharmacy" ? "pharmacy" : userProfile?.dashboardType === "hotel" ? "hotel" : userProfile?.role === "shopkeeper" ? "shopkeeper" : userProfile?.role === "services" ? "services" : "default";
   const copy = content[kind];
 
   return (

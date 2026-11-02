@@ -33,8 +33,12 @@ export async function POST(request: Request) {
     // Resolve the chosen business type against the LIVE admin list (the same list guests browse).
     // Done for every role: a buyer / collector also keeps the type they picked.
     let liveList: Awaited<ReturnType<typeof readRealtimeCategories>> = [];
+    let liveCategoriesAvailable = true;
     if (subcategoryId) {
-      try { liveList = await readRealtimeCategories(); } catch (error) { console.error('Live category lookup failed; falling back to the built-in catalogue:', error); }
+      try { liveList = await readRealtimeCategories(); } catch (error) { liveCategoriesAvailable = false; console.error('Live category lookup failed:', error); }
+    }
+    if (subcategoryId && !liveCategoriesAvailable) {
+      return NextResponse.json({ error: 'Live categories are temporarily unavailable. Please try again.' }, { status: 503 });
     }
     let resolved = subcategoryId ? resolveChosenType(liveList, subcategoryId, config.storedRole) : null;
     // The server decides buyer-type choices itself: picking Buyer / Customer / Collector always makes a buyer,
@@ -53,9 +57,10 @@ export async function POST(request: Request) {
         chosenCategoryId = resolved.categoryId;
         chosen = { categoryKey: resolved.categoryKey, option: resolved.option } as any;
       } else {
-        chosen = findSubcategory(subcategoryId);
+        // New registration must use an active admin-managed subcategory; legacy aliases are handled only by legacy reads.
+        chosen = null;
       }
-      if (!chosen && needsBusinessType) return NextResponse.json({ error: 'Please choose a business type.' }, { status: 400 });
+      if (!chosen && (needsBusinessType || subcategoryId)) return NextResponse.json({ error: 'Please choose an active business type.' }, { status: 400 });
       if (needsBusinessType && !businessName) return NextResponse.json({ error: 'Please enter your business name.' }, { status: 400 });
     }
 

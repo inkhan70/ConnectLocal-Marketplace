@@ -31,7 +31,15 @@ export async function POST(request: NextRequest) {
       const currentDashboard = String(target.data()?.dashboardType || '');
       // A services member keeps a specialised dashboard (health, food, ...) if they already have one.
       const dashboardType = role === 'services' && currentDashboard && !GENERIC_DASHBOARDS.has(currentDashboard) ? currentDashboard : DEFAULT_DASHBOARD[role];
-      await ref.update({ role, dashboardType, needsRoleSelection: false, roleSelectionCompleted: true, updatedAt: new Date().toISOString(), audit: FieldValue.arrayUnion({ action: 'role_changed', actorId: decoded.uid, role, at: new Date().toISOString() }) });
+      await ref.update({
+        role,
+        dashboardType,
+        needsRoleSelection: false,
+        roleSelectionCompleted: true,
+        ...(role === 'buyer' ? { businessName: '', category: '', categoryId: FieldValue.delete(), subcategoryId: FieldValue.delete(), subcategoryName: FieldValue.delete() } : {}),
+        updatedAt: new Date().toISOString(),
+        audit: FieldValue.arrayUnion({ action: 'role_changed', actorId: decoded.uid, role, at: new Date().toISOString() }),
+      });
       return NextResponse.json({ success: true, role });
     }
 

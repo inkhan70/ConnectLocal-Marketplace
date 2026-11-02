@@ -169,10 +169,15 @@ export function roleForSelection(categoryName?: string | null, subcategoryName?:
 }
 
 /** Dashboard layout for a member, from the category they chose and their role. */
-export function dashboardTypeFor(categoryKey: string, role: string): string {
+export function dashboardTypeFor(categoryKey: string, role: string, subcategoryName = ''): string {
   if (role === 'buyer') return 'buyer';
-  if (categoryKey === 'automotive') return 'automotive';
-  if (categoryKey === 'medical' && role !== 'services') return 'health';
+  const category = normText(categoryKey);
+  const subcategory = normText(subcategoryName);
+  if (subcategory.includes('pharmacy') || subcategory.includes('pharmacies') || subcategory.includes('chemist')) return 'pharmacy';
+  if (subcategory.includes('doctor') || subcategory.includes('physician') || subcategory.includes('clinic') || subcategory.includes('hospital')) return 'health';
+  if (category === 'automotive') return 'automotive';
+  if (category.includes('hotel') || category.includes('hospitality') || subcategory.includes('hotel')) return 'hotel';
+  if (category === 'medical' && role !== 'services') return 'health';
   if (role === 'shopkeeper') return 'shopkeeper';
   if (role === 'services') return 'services';
   return 'business';
@@ -185,7 +190,7 @@ export function resolveChosenType(list: CategoryItem[] | null | undefined, subca
   const live = resolveLiveSubcategory(list, subcategoryId);
   if (!live) return null;
   const categoryKey = categoryKeyFor(live.parent);
-  return { categoryKey, categoryId: live.parent.id, categoryName: live.parent.name, option: { id: live.child.id, name: live.child.name, role, dashboardType: dashboardTypeFor(categoryKey, role) } };
+  return { categoryKey, categoryId: live.parent.id, categoryName: live.parent.name, option: { id: live.child.id, name: live.child.name, role, dashboardType: dashboardTypeFor(categoryKey, role, live.child.name) } };
 }
 
 /** Number of members placed under each live category/subcategory id (used by the admin screen). */

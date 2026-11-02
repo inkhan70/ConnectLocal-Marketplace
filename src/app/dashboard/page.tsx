@@ -48,6 +48,10 @@ export default function DashboardPage() {
     switch (dashboardType) {
         case 'health':
             return <HealthDashboard />;
+        case 'pharmacy':
+            return <BusinessDashboard />;
+        case 'hotel':
+            return <BusinessDashboard />;
         case 'automotive':
             return <AutomotiveDashboard />;
         case 'hospitality':
