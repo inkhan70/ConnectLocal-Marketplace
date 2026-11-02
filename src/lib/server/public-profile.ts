@@ -11,7 +11,7 @@ import { resolveCategoryKey } from '@/lib/subcategories';
 export const PUBLIC_BUSINESS_ROLES = ['company', 'wholesaler', 'distributor', 'shopkeeper', 'services'] as const;
 
 export const PUBLIC_PROFILE_FIELDS = [
-  'uid', 'businessName', 'fullName', 'role', 'category', 'categoryId', 'subcategoryId', 'subcategoryName', 'dashboardType',
+  'uid', 'businessName', 'fullName', 'role', 'category', 'categoryId', 'subcategoryId', 'subcategoryName', 'dashboardType', 'profileStatus',
   'address', 'city', 'state', 'countryCode', 'latitude', 'longitude', 'storefrontWallpaper', 'slogan',
   'businessDescription', 'createdAt', 'currencyCode',
   // Public Ghost Coin offer shown on product pages
@@ -34,6 +34,8 @@ export function toPublicBusiness(id: string, data: Record<string, any> | undefin
   if (!data) return null;
   if (data.isAdmin === true) return null;
   if (!(PUBLIC_BUSINESS_ROLES as readonly string[]).includes(String(data.role))) return null;
+  if (data.needsRoleSelection === true || data.roleSelectionCompleted === false) return null;
+  if (['pending', 'rejected', 'suspended'].includes(String(data.profileStatus || '').toLowerCase())) return null;
   const out: Record<string, any> = { uid: id };
   for (const field of PUBLIC_PROFILE_FIELDS) {
     if (field === 'uid') continue;

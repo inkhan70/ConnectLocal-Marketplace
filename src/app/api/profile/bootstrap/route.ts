@@ -3,7 +3,6 @@ import { describeServerError, getAdminAuth, getAdminDb, hasAdminClaim, verifyBea
 import { bootstrapProfile, sanitizeHints } from '@/lib/server/admin-bootstrap';
 import { readRealtimeCategories } from '@/lib/server/category-rtdb';
 import { resolveChosenType } from '@/lib/category-live';
-import { findSubcategory } from '@/lib/subcategories';
 
 export const runtime = 'nodejs';
 
@@ -22,8 +21,15 @@ export async function POST(request: NextRequest) {
     const hints = sanitizeHints(body?.profile);
     // Read the live list BEFORE the Firestore transaction (the transaction must not do slow external reads).
     let liveList: Awaited<ReturnType<typeof readRealtimeCategories>> = [];
+    let liveCategoriesAvailable = true;
     if (hints.subcategoryId) {
-      try { liveList = await readRealtimeCategories(); } catch (e) { console.error('Live categories unavailable for bootstrap:', e); }
+      try { liveList = await readRealtimeCategories(); } catch (e) { liveCategoriesAvailable = false; console.error('Live categories unavailable for bootstrap:', e); }
+    }
+    if (hints.subcategoryId && !liveCategoriesAvailable) {
+      return NextResponse.json({ error: 'Live categories are temporarily unavailable. Please try again.', code: 'categories_unavailable' }, { status: 503 });
+    }
+    if (hints.subcategoryId && !resolveChosenType(liveList, hints.subcategoryId, hints.role || 'shopkeeper')) {
+      return NextResponse.json({ error: 'Please choose an active business type.', code: 'invalid_category' }, { status: 400 });
     }
     const result = await bootstrapProfile(
       getAdminDb(),
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
         claimIsAdmin: hasAdminClaim(decoded as any),
       },
       hints,
-      (id, role) => resolveChosenType(liveList, id, role) || findSubcategory(id),
+      (id, role) => resolveChosenType(liveList, id, role),
     );
     return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {

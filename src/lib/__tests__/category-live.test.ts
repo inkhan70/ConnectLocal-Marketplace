@@ -82,6 +82,9 @@ describe('live category pipeline', () => {
     expect(dashboardTypeFor('medical', 'buyer')).toBe('buyer');
     expect(dashboardTypeFor('automotive', 'buyer')).toBe('buyer');
     expect(dashboardTypeFor('food', 'shopkeeper')).toBe('shopkeeper');
+  expect(dashboardTypeFor('medical', 'shopkeeper', 'Pharmacies and retailers')).toBe('pharmacy');
+  expect(dashboardTypeFor('hospitality', 'shopkeeper', 'Hotels')).toBe('hotel');
+  expect(dashboardTypeFor('medical', 'services', 'Doctors')).toBe('health');
   });
 
   it('a collector subcategory resolves with the buyer dashboard', () => {
