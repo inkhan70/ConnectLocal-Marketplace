@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export interface PaymentMethodOption { value: "cod" | "stripe" | "paypal"; label: string; description?: string }
+export interface PaymentMethodOption { value: "cod" | "stripe" | "paypal" | "safepay"; label: string; description?: string }
 
 const FALLBACK: PaymentMethodOption[] = [{ value: "cod", label: "Cash on Delivery" }];
 let cached: { at: number; methods: PaymentMethodOption[] } | null = null;

@@ -17,12 +17,12 @@ export interface GuestCheckoutData {
   address: string;
   city: string;
   state: string;
-  paymentMethod: "cod" | "jazzcash" | "easypaisa" | "stripe" | "paypal";
+  paymentMethod: "cod" | "jazzcash" | "easypaisa" | "stripe" | "paypal" | "safepay";
 }
 
 const formSchema = z.object({
   fullName: z.string().min(2), email: z.string().email(), phone: z.string().min(7), address: z.string().min(5), city: z.string().min(2), state: z.string().min(2),
-  paymentMethod: z.enum(["cod", "stripe", "paypal"]),
+  paymentMethod: z.enum(["cod", "stripe", "paypal", "safepay"]),
 });
 
 type GuestCheckoutFormValues = z.infer<typeof formSchema>;

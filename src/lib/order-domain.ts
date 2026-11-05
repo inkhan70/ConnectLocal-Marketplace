@@ -22,6 +22,7 @@ export const PAYMENT_METHODS = [
   'easypaisa',
   'stripe',
   'paypal',
+  'safepay',
 ] as const;
 
 export type PaymentMethod = typeof PAYMENT_METHODS[number];

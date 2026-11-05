@@ -11,7 +11,7 @@ import { processPayment } from "@/lib/payment-utils";
 import { ContactSeller } from "@/components/ContactSeller";
 
 interface TrackedOrder {
-  id: string; status: string; paymentStatus?: string; paymentMethod?: "cod" | "stripe" | "paypal";
+  id: string; status: string; paymentStatus?: string; paymentMethod?: "cod" | "stripe" | "paypal" | "safepay";
   deliveryMethod?: "pickup" | "seller_delivery"; deliveryAddress?: { address?: string; city?: string; state?: string } | null;
   items: { name?: string; varietyName?: string; quantity: number; price?: number }[];
   subtotal?: number; deliveryFee?: number; totalCost: number; currency?: string; createdAt?: string; sellerName: string;
@@ -64,6 +64,8 @@ export default function TrackOrderPage() {
         toast(confirmation.ok && confirmationBody.status === "paid"
           ? { title: "Payment received", description: "Your order is now confirmed." }
           : { title: "Payment still processing", description: "Stripe has not confirmed this payment yet. Refresh shortly.", variant: "destructive" });
+      } else if (p.get("payment") === "processing") {
+        toast({ title: "Confirming your payment", description: "Waiting for the payment provider to confirm. This page updates automatically." });
       } else if (p.get("payment") === "cancelled") {
         toast({ title: "Payment cancelled", description: "Your order is reserved. You can pay again below.", variant: "destructive" });
       }

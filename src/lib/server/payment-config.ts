@@ -12,7 +12,8 @@ export function getEnabledPaymentMethods(env: NodeJS.ProcessEnv = process.env): 
   const methods: PaymentMethodOption[] = [{ value: 'cod', label: 'Cash on Delivery', description: 'Pay the seller when you receive your order.' }];
   if (env.STRIPE_SECRET_KEY) methods.push({ value: 'stripe', label: 'Credit / Debit Card', description: 'Secure card payment (Stripe).' });
   if (env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET) methods.push({ value: 'paypal', label: 'PayPal', description: 'Pay with your PayPal account.' });
-  if (env.SAFEPAY_SECRET_KEY && env.SAFEPAY_PUBLIC_KEY) methods.push({ value: 'safepay', label: 'Safepay', description: 'Pay securely in PKR with Safepay.' });
+  // Offered only when the webhook secret is set too: the webhook is the ONLY thing that confirms a Safepay payment.
+  if (env.SAFEPAY_SECRET_KEY && env.SAFEPAY_PUBLIC_KEY && env.SAFEPAY_WEBHOOK_SECRET) methods.push({ value: 'safepay', label: 'Safepay', description: 'Pay securely in PKR with Safepay.' });
   return methods;
 }
 

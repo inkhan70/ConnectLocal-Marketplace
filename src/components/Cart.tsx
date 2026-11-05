@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { processPayment } from '@/lib/payment-utils';
 
-type PaymentMethod = 'cod' | 'stripe' | 'paypal';
+type PaymentMethod = 'cod' | 'stripe' | 'paypal' | 'safepay';
 
 /** Remembers guest orders on this device so a guest can come back to their order and verification code. */
 function rememberGuestOrder(orderId: string, key: string) {
