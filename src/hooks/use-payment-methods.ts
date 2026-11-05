@@ -8,10 +8,11 @@ const FALLBACK: PaymentMethodOption[] = [{ value: "cod", label: "Cash on Deliver
 let cached: { at: number; key: string; methods: PaymentMethodOption[] } | null = null;
 
 /** The payment methods this deployment can really process (server-decided; Cash on Delivery is always present). */
-export function usePaymentMethods(context?: { country?: string; currency?: string }) {
+export function usePaymentMethods(context?: { country?: string; currency?: string; sellerId?: string }) {
   const country = context?.country?.toUpperCase();
+  const sellerId = context?.sellerId;
   const currency = context?.currency?.toUpperCase();
-  const cacheKey = `${country || ""}:${currency || ""}`;
+  const cacheKey = `${sellerId || ""}:${country || ""}:${currency || ""}`;
   const [methods, setMethods] = useState<PaymentMethodOption[]>(cached?.methods ?? FALLBACK);
   const [isLoading, setIsLoading] = useState(!cached);
 
@@ -21,6 +22,7 @@ export function usePaymentMethods(context?: { country?: string; currency?: strin
     const query = new URLSearchParams();
     if (country) query.set("country", country);
     if (currency) query.set("currency", currency);
+    if (sellerId) query.set("sellerId", sellerId);
     fetch(`/api/payments/methods${query.size ? `?${query.toString()}` : ""}`, { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((body) => {

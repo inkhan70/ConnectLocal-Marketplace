@@ -43,7 +43,6 @@ export function Cart() {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { methods: paymentOptions } = usePaymentMethods({ country: userProfile?.countryCode, currency: userProfile?.currencyCode });
 
   const [deliveryAddress, setDeliveryAddress] = useState<Address>({ address: "", city: "", state: "" });
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('seller_delivery');
@@ -52,6 +51,8 @@ export function Cart() {
   const [showCheckoutOptions, setShowCheckoutOptions] = useState(false);
 
   const sellers = [...new Set(cart.map(item => item.userId))];
+  const checkoutSellerId = sellers.length === 1 ? sellers[0] : undefined;
+  const { methods: paymentOptions } = usePaymentMethods({ sellerId: checkoutSellerId, country: userProfile?.countryCode, currency: userProfile?.currencyCode });
 
   // If the chosen provider is not available on this deployment, fall back to cash on delivery.
   useEffect(() => {
