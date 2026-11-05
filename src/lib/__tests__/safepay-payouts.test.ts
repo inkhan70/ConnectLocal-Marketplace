@@ -77,7 +77,7 @@ describe('Safepay payment -> order -> ledger -> earnings', () => {
     const db = setup();
     expect((await paid(db, 99999)).mismatch).toBe(true);
     expect((await paid(db, 100000, 'USD')).mismatch).toBe(true);
-    expect(db.store.get('orders/o1').status).toBe('pending_payment');
+    expect(db.store.get('orders/o1')).toMatchObject({ status: 'cancelled', paymentStatus: 'failed', paymentMismatch: true, needsRefund: true });
     expect(db.store.get('paymentTransactions/t1').status).toBe('pending');
   });
 

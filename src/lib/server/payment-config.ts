@@ -5,6 +5,7 @@
  * provider-specific adapters exist.
  */
 import type { Firestore } from 'firebase-admin/firestore';
+import { DEFAULT_PROVIDER_CAPABILITIES } from '@/lib/server/provider-capabilities';
 
 export type PaymentMethodValue = 'cod' | 'stripe' | 'paypal' | 'safepay';
 
@@ -47,4 +48,30 @@ export function getEnabledPaymentMethods(env: NodeJS.ProcessEnv = process.env): 
 
 export function isPaymentMethodEnabled(method: string, env: NodeJS.ProcessEnv = process.env): boolean {
   return getEnabledPaymentMethods(env).some((m) => m.value === method);
+}
+
+function credentialsReady(method: string, env: NodeJS.ProcessEnv): boolean {
+  if (method === 'stripe') return Boolean(env.STRIPE_SECRET_KEY);
+  if (method === 'paypal') return Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET);
+  if (method === 'safepay') return Boolean(env.SAFEPAY_SECRET_KEY && env.SAFEPAY_PUBLIC_KEY && env.SAFEPAY_WEBHOOK_SECRET);
+  return method === 'cod';
+}
+
+export async function isPaymentMethodAvailable(db: Firestore, method: string, country: string, currency: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  if (!credentialsReady(method, env)) return false;
+  if (method === 'cod') return true;
+  const normalizedCountry = country.toUpperCase();
+  const normalizedCurrency = currency.toUpperCase();
+  const [globalSnap, countrySnap] = await Promise.all([
+    db.collection('paymentProviderConfigs').doc(`${method}_GLOBAL`).get(),
+    db.collection('paymentProviderConfigs').doc(`${method}_${normalizedCountry}`).get(),
+  ]);
+  const config = countrySnap.exists ? countrySnap.data() as any : globalSnap.exists ? globalSnap.data() as any : null;
+  if (config && config.enabled !== true) return false;
+  if (config?.currencies?.length && !config.currencies.includes(normalizedCurrency)) return false;
+  if (config && config.merchantApproved !== true) return false;
+  const capability = DEFAULT_PROVIDER_CAPABILITIES.find((provider) => provider.id === method);
+  if (!capability || !(capability.countries.includes('*') || capability.countries.includes(normalizedCountry)) || !(capability.currencies.includes('*') || capability.currencies.includes(normalizedCurrency))) return false;
+  if (method === 'safepay' && config && !config.webhookVerifiedAt) return false;
+  return true;
 }

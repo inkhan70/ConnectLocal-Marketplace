@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorStatus, getAdminDb, safeMessage, readJsonBody } from '@/lib/server/firebase-admin';
 import { requireOrderBuyer } from '@/lib/server/order-secrets';
-import { getPlatformFeeConfig, isPaymentMethodEnabled } from '@/lib/server/payment-config';
+import { getPlatformFeeConfig, isPaymentMethodAvailable } from '@/lib/server/payment-config';
 import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAppUrl } from '@/lib/server/app-url';
 import { createPendingTransaction } from '@/lib/server/payment-ledger';
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, provider: 'cod', status: 'paid' });
     }
 
-    if (!isPaymentMethodEnabled(method)) return jsonError('This payment method is not available right now. Please choose another one.', 503);
+    if (!(await isPaymentMethodAvailable(db, method, String(order.country || (currency === 'PKR' ? 'PK' : 'US')), currency))) return jsonError('This payment method is not available right now. Please choose another one.', 503);
     const feeConfig = await getPlatformFeeConfig(db);
     const transaction = await createPendingTransaction(db, {
       orderId: snap.id,

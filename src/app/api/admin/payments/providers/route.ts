@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!allowed) return NextResponse.json({ error: 'Unsupported provider.' }, { status: 422 });
     const country = String(body.country || "GLOBAL").toUpperCase();
     if (country !== "GLOBAL" && !/^[A-Z]{2}$/.test(country)) return NextResponse.json({ error: 'Use a valid ISO country code.' }, { status: 422 });
-    const patch = { providerId, country, enabled: Boolean(body.enabled), currencies: Array.isArray(body.currencies) ? body.currencies.filter((value: unknown) => /^[A-Z]{3}$/.test(String(value))) : [], updatedAt: new Date().toISOString(), updatedBy: admin.uid };
+    const patch = { providerId, country, enabled: Boolean(body.enabled), merchantApproved: Boolean(body.merchantApproved), currencies: Array.isArray(body.currencies) ? body.currencies.filter((value: unknown) => /^[A-Z]{3}$/.test(String(value))) : [], updatedAt: new Date().toISOString(), updatedBy: admin.uid };
     await getAdminDb().collection('paymentProviderConfigs').doc(`${providerId}_${country}`).set(patch, { merge: true });
     return NextResponse.json({ success: true, ...patch });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import crypto from 'crypto';
 import { authErrorStatus, getAdminDb, requireAdmin, safeMessage } from '@/lib/server/firebase-admin';
 import { loadOrderStatuses, toLedgerRow } from '@/lib/server/payout-data';
 import { maskAccount, selectPayable, sellerNetMinor, summarizeEarnings, type LedgerRow } from '@/lib/settlement';
@@ -31,14 +32,21 @@ export async function GET(request: NextRequest) {
     }
     sellers.sort((x, y) => (y.totals[0]?.availableMinor || 0) - (x.totals[0]?.availableMinor || 0));
 
-    const hist = await db.collection('payouts').orderBy('paidAt', 'desc').limit(50).get();
-    const payouts = hist.docs.map((d) => { const p: any = d.data(); return { id: d.id, sellerId: p.sellerId, sellerName: p.sellerName, amountMinor: p.amountMinor, currency: p.currency, reference: p.reference, method: p.method, accountMasked: p.accountMasked, orderCount: p.orderCount, paidAt: p.paidAt?.toDate ? p.paidAt.toDate().toISOString() : null }; });
+    const requestedLimit = Math.min(100, Math.max(1, Number(request.nextUrl.searchParams.get('limit') || 50)));
+    const cursor = Number(request.nextUrl.searchParams.get('cursor') || 0);
+    let historyQuery: FirebaseFirestore.Query = db.collection('payouts').orderBy('paidAt', 'desc').limit(requestedLimit + 1);
+    if (Number.isFinite(cursor) && cursor > 0) historyQuery = db.collection('payouts').orderBy('paidAt', 'desc').startAfter(Timestamp.fromMillis(cursor)).limit(requestedLimit + 1);
+    const hist = await historyQuery.get();
+    const page = hist.docs.slice(0, requestedLimit);
+    const lastPaidAt = page.at(-1)?.data().paidAt;
+    const nextCursor = hist.docs.length > requestedLimit && lastPaidAt?.toMillis ? lastPaidAt.toMillis() : null;
+    const payouts = page.map((d) => { const p: any = d.data(); return { id: d.id, sellerId: p.sellerId, sellerName: p.sellerName, amountMinor: p.amountMinor, currency: p.currency, reference: p.reference, method: p.method, accountMasked: p.accountMasked, orderCount: p.orderCount, paidAt: p.paidAt?.toDate ? p.paidAt.toDate().toISOString() : null }; });
 
     // Refunds that arrived after the seller was already paid need a manual recovery.
     const clawbacks = (await db.collection('paymentTransactions').where('refundedAfterPayout', '==', true).limit(50).get())
       .docs.map((d) => { const t: any = d.data(); return { orderId: t.orderId, sellerId: t.sellerId, amountMinor: sellerNetMinor(toLedgerRow(d)), currency: t.currency }; });
 
-    return NextResponse.json({ sellers, payouts, clawbacks });
+    return NextResponse.json({ sellers, payouts, nextCursor, clawbacks });
   } catch (error) {
     return NextResponse.json({ error: safeMessage(error, 'Unable to load payouts.') }, { status: authErrorStatus(error) });
   }
@@ -64,6 +72,9 @@ export async function POST(request: NextRequest) {
     if (!accountSnap.exists) return NextResponse.json({ error: 'This member has not added payout details yet.' }, { status: 409 });
     const account: any = accountSnap.data();
 
+    const existingReference = await db.collection('payouts').where('sellerId', '==', sellerId).limit(200).get();
+    if (existingReference.docs.some((doc) => String(doc.data().reference || '') === reference && String(doc.data().currency || '') === currency)) return NextResponse.json({ error: 'This payout reference was already recorded for this member and currency.' }, { status: 409 });
+
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(db.collection('paymentTransactions').where('sellerId', '==', sellerId).limit(500));
       const rows = snap.docs.map(toLedgerRow);
@@ -76,7 +87,10 @@ export async function POST(request: NextRequest) {
       if (!payable.length) throw Object.assign(new Error('Nothing is available to pay out for this member.'), { status: 409 });
       const amountMinor = payable.reduce((sum, r) => sum + sellerNetMinor(r), 0);
 
-      const payoutRef = db.collection('payouts').doc();
+      const payoutId = crypto.createHash('sha256').update(`${sellerId}:${currency}:${reference}`).digest('hex').slice(0, 40);
+      const payoutRef = db.collection('payouts').doc(payoutId);
+      const payoutExists = await tx.get(payoutRef);
+      if (payoutExists.exists) throw Object.assign(new Error('This payout reference was already recorded.'), { status: 409 });
       tx.create(payoutRef, {
         sellerId, sellerName: (userSnap.data() as any)?.businessName || (userSnap.data() as any)?.fullName || '', currency, amountMinor, reference,
         method: account.method, accountTitle: account.accountTitle, accountMasked: maskAccount(account.accountNumber),

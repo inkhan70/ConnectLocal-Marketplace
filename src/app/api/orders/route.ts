@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { DocumentSnapshot } from 'firebase-admin/firestore';
 import { authErrorStatus, getAdminDb, verifyBearerToken, safeMessage, readJsonBody } from '@/lib/server/firebase-admin';
 import { hashKey, newGuestKey } from '@/lib/server/order-secrets';
-import { isPaymentMethodEnabled } from '@/lib/server/payment-config';
+import { isPaymentMethodAvailable } from '@/lib/server/payment-config';
 import { calculateDeliveryFee, generatePickupCode, PAYMENT_METHODS, type DeliveryMethod, type PaymentMethod } from '@/lib/order-domain';
 import { notifyOrderParties } from '@/lib/server/notifications';
 import crypto from 'crypto';
@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     const guestName = String(body.guest?.name || '').trim();
     if (!decoded && (!guestEmail || !guestName)) return authError('Sign in or provide guest checkout name and email.');
     // Guests may pay online too: the order is bound to a secret guest key (returned once, stored only as a hash).
-    if (!isPaymentMethodEnabled(paymentMethod)) return NextResponse.json({ error: 'That payment method is not available right now. Please choose another one.' }, { status: 400 });
 
     const cleanItems = items.map((item: any) => ({
       productId: String(item.productId || ''),
@@ -80,6 +79,9 @@ export async function POST(request: NextRequest) {
     const sellerSnap = await db.collection('users').doc(businessId).get();
     if (!sellerSnap.exists) return NextResponse.json({ error: 'Seller account could not be found.' }, { status: 409 });
     const seller: any = sellerSnap.data();
+    const orderCurrency = String(seller.currencyCode || process.env.MARKETPLACE_CURRENCY || process.env.NEXT_PUBLIC_MARKETPLACE_CURRENCY || 'USD').toUpperCase();
+    const orderCountry = String(seller.countryCode || seller.country || (orderCurrency === 'PKR' ? 'PK' : 'US')).toUpperCase();
+    if (!(await isPaymentMethodAvailable(db, paymentMethod, orderCountry, orderCurrency))) return NextResponse.json({ error: 'That payment method is not available right now. Please choose another one.' }, { status: 400 });
     const configuredReward = Number(seller.ghostCoinRewardPerSale ?? seller.ghostCoinsPerSale ?? 0);
     const configuredMinimumQuantity = Number(seller.ghostCoinMinimumQuantity ?? seller.ghostCoinMinQuantity ?? 1);
     const ghostCoinOffer = {
@@ -140,7 +142,7 @@ export async function POST(request: NextRequest) {
         deliveryAddress: body.deliveryAddress || null,
         destination: body.destination || null,
         totalCost: total,
-        currency: String(seller.currencyCode || process.env.MARKETPLACE_CURRENCY || process.env.NEXT_PUBLIC_MARKETPLACE_CURRENCY || 'USD').toUpperCase(),
+        currency: orderCurrency,
         ghostCoinOffer,
         orderDate: FieldValue.serverTimestamp(),
         status: initialStatus,
