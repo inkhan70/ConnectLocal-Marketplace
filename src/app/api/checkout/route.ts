@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorStatus, getAdminDb, safeMessage, readJsonBody } from '@/lib/server/firebase-admin';
 import { requireOrderBuyer } from '@/lib/server/order-secrets';
-import { isPaymentMethodEnabled } from '@/lib/server/payment-config';
+import { getPlatformFeeConfig, isPaymentMethodEnabled } from '@/lib/server/payment-config';
 import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAppUrl } from '@/lib/server/app-url';
 import { createPendingTransaction } from '@/lib/server/payment-ledger';
-import { computePlatformFeeMinor } from '@/lib/settlement';
+import { computeConfiguredPlatformFeeMinor } from '@/lib/settlement';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isPaymentMethodEnabled(method)) return jsonError('This payment method is not available right now. Please choose another one.', 503);
+    const feeConfig = await getPlatformFeeConfig(db);
     const transaction = await createPendingTransaction(db, {
       orderId: snap.id,
       buyerId: access.kind === 'buyer' ? access.uid : undefined,
@@ -48,10 +49,15 @@ export async function POST(request: NextRequest) {
       country: String(order.country || (currency === 'PKR' ? 'PK' : 'US')).toUpperCase(),
       currency,
       amountMinor: Math.round(total * 100),
-      // Commission is charged on the goods only (not on the delivery fee): PLATFORM_FEE_PERCENT, 0 by default.
+      // Admin-configured commission applies to goods and service charge; seller net can never become negative.
       platformFeeMinor: order.platformFee != null
-        ? Math.max(0, Math.round(Number(order.platformFee) * 100))
-        : computePlatformFeeMinor(Math.round(Number(order.subtotal ?? total) * 100), Number(process.env.PLATFORM_FEE_PERCENT || 0)),
+        ? Math.min(Math.round(total * 100), Math.max(0, Math.round(Number(order.platformFee) * 100)))
+        : computeConfiguredPlatformFeeMinor(
+            Math.round(Number(order.subtotal ?? total) * 100),
+            Math.round(total * 100),
+            feeConfig.commissionPercent,
+            feeConfig.serviceChargePercent,
+          ),
       idempotencyKey: `order_${snap.id}_${method}`,
     });
     // `ledgerTransactionId` links the order to its ledger row. (`paymentTransactionId` is the PROVIDER's reference, set

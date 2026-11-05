@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorStatus, getAdminDb, safeMessage, verifyBearerToken } from '@/lib/server/firebase-admin';
+import { getPlatformFeeConfig } from '@/lib/server/payment-config';
 import { loadOrderStatuses, toLedgerRow } from '@/lib/server/payout-data';
 import { maskAccount, summarizeEarnings } from '@/lib/settlement';
 
@@ -25,7 +26,8 @@ export async function GET(request: NextRequest) {
     const a: any = accountSnap.exists ? accountSnap.data() : null;
     const account = a ? { method: a.method, accountTitle: a.accountTitle, bankName: a.bankName || '', maskedNumber: maskAccount(a.accountNumber) } : null;
 
-    return NextResponse.json({ totals, payouts, account, feePercent: Number(process.env.PLATFORM_FEE_PERCENT || 0), truncated: ledger.size >= 500 });
+    const feeConfig = await getPlatformFeeConfig(db);
+    return NextResponse.json({ totals, payouts, account, feePercent: feeConfig.commissionPercent, serviceChargePercent: feeConfig.serviceChargePercent, truncated: ledger.size >= 500 });
   } catch (error) {
     return NextResponse.json({ error: safeMessage(error, 'Unable to load earnings.') }, { status: authErrorStatus(error) });
   }
