@@ -51,6 +51,11 @@ const businessSidebarNavItems = [
         icon: CreditCard,
     },
     {
+        title: "Earnings",
+        href: "/dashboard/earnings",
+        icon: CreditCard,
+    },
+    {
         title: "Plans & Billing",
         href: "/dashboard/subscription",
         icon: CreditCard,

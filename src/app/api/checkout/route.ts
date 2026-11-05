@@ -5,6 +5,7 @@ import { isPaymentMethodEnabled } from '@/lib/server/payment-config';
 import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAppUrl } from '@/lib/server/app-url';
 import { createPendingTransaction } from '@/lib/server/payment-ledger';
+import { computePlatformFeeMinor } from '@/lib/settlement';
 
 export const runtime = 'nodejs';
 
@@ -44,17 +45,26 @@ export async function POST(request: NextRequest) {
       buyerId: access.kind === 'buyer' ? access.uid : undefined,
       sellerId: String(order.sellerId || order.businessId || order.memberId || ''),
       provider: method,
-      country: String(order.country || 'US').toUpperCase(),
+      country: String(order.country || (currency === 'PKR' ? 'PK' : 'US')).toUpperCase(),
       currency,
       amountMinor: Math.round(total * 100),
-      platformFeeMinor: Math.max(0, Math.round(Number(order.platformFee || 0) * 100)),
+      // Commission is charged on the goods only (not on the delivery fee): PLATFORM_FEE_PERCENT, 0 by default.
+      platformFeeMinor: order.platformFee != null
+        ? Math.max(0, Math.round(Number(order.platformFee) * 100))
+        : computePlatformFeeMinor(Math.round(Number(order.subtotal ?? total) * 100), Number(process.env.PLATFORM_FEE_PERCENT || 0)),
       idempotencyKey: `order_${snap.id}_${method}`,
     });
-    await ref.update({ paymentTransactionId: transaction.id, updatedAt: new Date() });
+    // `ledgerTransactionId` links the order to its ledger row. (`paymentTransactionId` is the PROVIDER's reference, set
+    // when the payment is confirmed - it used to be overwritten here with the ledger id and then lost.)
+    await ref.update({ ledgerTransactionId: transaction.id, updatedAt: new Date() });
     const appUrl = getAppUrl(request);
     if (method === 'stripe') return createStripePayment(ref, order, snap.id, appUrl, returnPath);
     if (method === 'paypal') return createPayPalPayment(ref, order, snap.id, appUrl, returnPath);
-    if (method === 'safepay') return createSafepayPayment(ref, order, snap.id, appUrl, returnPath);
+    if (method === 'safepay') {
+      // Safepay may send the customer back by form POST, which a page cannot receive: use the return endpoint.
+      const success = `/api/payments/safepay/return?orderId=${encodeURIComponent(snap.id)}${access.kind === 'guest' ? `&k=${encodeURIComponent(String(guestKey))}` : ''}`;
+      return createSafepayPayment(ref, order, snap.id, appUrl, { success, cancel: returnPath.cancel });
+    }
     if (method === 'jazzcash' || method === 'easypaisa') {
       const configured = process.env[`${method.toUpperCase()}_CHECKOUT_URL`];
       if (!configured) return jsonError(`${method === 'jazzcash' ? 'JazzCash' : 'Easypaisa'} sandbox credentials/checkout endpoint are not configured yet. The order remains safely pending payment.`, 503);

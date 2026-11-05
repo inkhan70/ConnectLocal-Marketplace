@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cod' | 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal';
+export type PaymentMethod = 'cod' | 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal' | 'safepay';
 
 export interface PaymentConfig { method: PaymentMethod; orderId: string; /** Guest orders authenticate with the guest key instead of a login token. */ guestKey?: string; }
 export interface PaymentResponse { success: boolean; provider: PaymentMethod | null; status?: string; clientSecret?: string; paymentOrderId?: string; checkoutUrl?: string; links?: Array<{ href: string; rel?: string; method?: string }>; error?: string; }
@@ -21,9 +21,9 @@ export function formatAmount(amount: number, currency = process.env.NEXT_PUBLIC_
 }
 
 export function isValidPaymentMethod(method: unknown): method is PaymentMethod {
-  return ['cod', 'jazzcash', 'easypaisa', 'stripe', 'paypal'].includes(String(method));
+  return ['cod', 'jazzcash', 'easypaisa', 'stripe', 'paypal', 'safepay'].includes(String(method));
 }
 
 export function getPaymentMethodName(method: PaymentMethod) {
-  return ({ cod: 'Cash on Delivery', jazzcash: 'JazzCash', easypaisa: 'Easypaisa', stripe: 'Stripe', paypal: 'PayPal' } as const)[method];
+  return ({ cod: 'Cash on Delivery', jazzcash: 'JazzCash', easypaisa: 'Easypaisa', stripe: 'Stripe', paypal: 'PayPal', safepay: 'Safepay' } as const)[method];
 }

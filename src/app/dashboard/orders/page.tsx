@@ -18,7 +18,7 @@ import { usePublicBusiness } from '@/hooks/use-public-business';
 
 interface Order {
   id: string; buyerId: string; businessId: string; buyerName: string; buyerPhone?: string; items: any[]; totalCost: number; orderDate: Timestamp;
-  status: string; pickupCode?: string; paymentMethod?: 'cod' | 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal'; deliveryMethod?: 'seller_delivery' | 'pickup'; paymentStatus?: string; deliveryAddress?: any;
+  status: string; pickupCode?: string; paymentMethod?: 'cod' | 'jazzcash' | 'easypaisa' | 'stripe' | 'paypal' | 'safepay'; deliveryMethod?: 'seller_delivery' | 'pickup'; paymentStatus?: string; deliveryAddress?: any;
 }
 
 const label = (status: string) => status.replaceAll('_', ' ');
@@ -107,6 +107,7 @@ export default function OrdersPage() {
           ? { title: 'Payment received', description: 'Your order is now confirmed.' }
           : { title: 'Payment still processing', description: 'Stripe has not confirmed this payment yet. Refresh shortly.', variant: 'destructive' });
       }
+      else if (payment === 'processing') toast({ title: 'Confirming your payment', description: 'Waiting for the payment provider to confirm. Your order updates automatically.' });
       else if (payment === 'cancelled') toast({ title: 'Payment cancelled', description: 'Your order is reserved. Press Pay to try again.', variant: 'destructive' });
       window.history.replaceState({}, '', '/dashboard/orders');
     })();

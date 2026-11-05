@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
+import { syncLedgerForOrder } from '@/lib/server/payment-ledger';
 
 export type PaymentEventKind = 'paid' | 'failed' | 'refunded';
 
@@ -7,6 +8,8 @@ export interface PaymentEventMeta {
   provider?: string;
   sessionId?: string | null;
   transactionId?: string | null;
+  providerFeeMinor?: number | null;
+  providerNetMinor?: number | null;
 }
 
 /**
@@ -90,6 +93,12 @@ export async function applyPaymentEvent(
       result.changed = true;
     }
   });
+
+  // Mirror the verified event onto the payment ledger. Never let a ledger problem undo a confirmed payment.
+  if (result.found && result.changed && result.order) {
+    try { await syncLedgerForOrder(db, result.order, kind, meta); }
+    catch (error) { console.error(`Ledger sync failed for order ${orderId}:`, error); }
+  }
 
   return result;
 }
