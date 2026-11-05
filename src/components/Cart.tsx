@@ -43,7 +43,7 @@ export function Cart() {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { methods: paymentOptions } = usePaymentMethods();
+  const { methods: paymentOptions } = usePaymentMethods({ country: userProfile?.countryCode, currency: userProfile?.currencyCode });
 
   const [deliveryAddress, setDeliveryAddress] = useState<Address>({ address: "", city: "", state: "" });
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('seller_delivery');
