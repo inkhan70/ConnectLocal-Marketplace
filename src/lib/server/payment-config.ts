@@ -4,7 +4,35 @@
  * an order reservation for) a provider that cannot complete. JazzCash / Easypaisa are not offered until their
  * provider-specific adapters exist.
  */
+import type { Firestore } from 'firebase-admin/firestore';
+
 export type PaymentMethodValue = 'cod' | 'stripe' | 'paypal' | 'safepay';
+
+export interface PlatformFeeConfig {
+  commissionPercent: number;
+  serviceChargePercent: number;
+  updatedAt?: string | null;
+}
+
+export function clampPercent(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(50, Math.max(0, Math.round(n * 100) / 100)) : fallback;
+}
+
+export async function getPlatformFeeConfig(db: Firestore, env: NodeJS.ProcessEnv = process.env): Promise<PlatformFeeConfig> {
+  const fallback = {
+    commissionPercent: clampPercent(env.PLATFORM_FEE_PERCENT),
+    serviceChargePercent: clampPercent(env.PLATFORM_SERVICE_CHARGE_PERCENT),
+  };
+  const snap = await db.collection('appSettings').doc('payments').get();
+  const data = snap.exists ? snap.data() as any : null;
+  if (!data) return fallback;
+  return {
+    commissionPercent: clampPercent(data.commissionPercent, fallback.commissionPercent),
+    serviceChargePercent: clampPercent(data.serviceChargePercent, fallback.serviceChargePercent),
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || data.updatedAt || null,
+  };
+}
 
 export interface PaymentMethodOption { value: PaymentMethodValue; label: string; description: string }
 

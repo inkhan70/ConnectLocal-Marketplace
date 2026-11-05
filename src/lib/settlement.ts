@@ -30,6 +30,13 @@ export function computePlatformFeeMinor(subtotalMinor: number, percent: number):
   return Math.round((base * p) / 100);
 }
 
+export function computeConfiguredPlatformFeeMinor(goodsMinor: number, totalMinor: number, commissionPercent: number, serviceChargePercent: number): number {
+  const total = Math.max(0, Math.round(Number(totalMinor) || 0));
+  const commission = computePlatformFeeMinor(goodsMinor, commissionPercent);
+  const serviceCharge = computePlatformFeeMinor(total, serviceChargePercent);
+  return Math.min(total, commission + serviceCharge);
+}
+
 export interface LedgerRow {
   id: string;
   orderId: string;
