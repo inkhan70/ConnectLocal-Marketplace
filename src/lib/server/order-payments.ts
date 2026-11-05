@@ -44,14 +44,28 @@ export async function applyPaymentEvent(
     if (meta.transactionId) providerFields.paymentTransactionId = meta.transactionId;
 
     if (kind === 'paid') {
-      if (expected?.amountMinor != null && Math.round(Number(order.totalCost) * 100) !== expected.amountMinor) {
+      const mismatch = expected?.amountMinor != null && Math.round(Number(order.totalCost) * 100) !== expected.amountMinor
+        ? 'payment_amount_mismatch'
+        : expected?.currency && String(order.currency || '').toUpperCase() !== expected.currency.toUpperCase()
+          ? 'payment_currency_mismatch'
+          : null;
+      if (mismatch) {
         result.mismatch = true;
-        transaction.update(ref, { ...providerFields, paymentMismatch: true, audit: FieldValue.arrayUnion({ action: 'payment_amount_mismatch', actorId: 'system', at: new Date().toISOString() }) });
-        return;
-      }
-      if (expected?.currency && String(order.currency || '').toUpperCase() !== expected.currency.toUpperCase()) {
-        result.mismatch = true;
-        transaction.update(ref, { ...providerFields, paymentMismatch: true, audit: FieldValue.arrayUnion({ action: 'payment_currency_mismatch', actorId: 'system', at: new Date().toISOString() }) });
+        const items: any[] = order.items || [];
+        if (order.status === 'pending_payment' && !order.inventoryRestoredAt) {
+          const refs = [...new Set(items.map((item) => String(item.productId)))].map((id) => db.collection('products').doc(id));
+          const snapshots = refs.length ? await transaction.getAll(...refs) : [];
+          const quantities = new Map<string, number>();
+          for (const item of items) quantities.set(String(item.productId), (quantities.get(String(item.productId)) || 0) + Number(item.quantity || 0));
+          for (const product of snapshots) {
+            if (!product.exists || (product.data() as any)?.trackInventory === false) continue;
+            const data: any = product.data();
+            const inventory = Number(data.inventory || 0) + (quantities.get(product.id) || 0);
+            transaction.update(product.ref, { inventory, status: inventory === 0 ? 'Out of Stock' : inventory <= Number(data.lowStockThreshold || 0) ? 'Low Stock' : 'Active', updatedAt: FieldValue.serverTimestamp() });
+          }
+        }
+        transaction.update(ref, { ...providerFields, status: order.status === 'pending_payment' ? 'cancelled' : order.status, paymentStatus: 'failed', paymentMismatch: true, needsRefund: true, ...(order.inventoryRestoredAt ? {} : { inventoryRestoredAt: FieldValue.serverTimestamp() }), audit: FieldValue.arrayUnion({ action: mismatch, actorId: 'system', at: new Date().toISOString() }) });
+        result.changed = true;
         return;
       }
       if (order.status === 'pending_payment') {
@@ -87,7 +101,20 @@ export async function applyPaymentEvent(
 
     if (kind === 'refunded') {
       if (order.paymentStatus === 'refunded' && order.status === 'refunded') return;
-      const patch: Record<string, any> = { ...providerFields, paymentStatus: 'refunded', refundedAt: FieldValue.serverTimestamp(), audit: FieldValue.arrayUnion({ action: 'provider_refund_confirmed', actorId: 'system', at: new Date().toISOString() }) };
+      if (!order.inventoryRestoredAt) {
+        const items: any[] = order.items || [];
+        const refs = [...new Set(items.map((item) => String(item.productId)))].map((id) => db.collection('products').doc(id));
+        const snapshots = refs.length ? await transaction.getAll(...refs) : [];
+        const quantities = new Map<string, number>();
+        for (const item of items) quantities.set(String(item.productId), (quantities.get(String(item.productId)) || 0) + Number(item.quantity || 0));
+        for (const product of snapshots) {
+          if (!product.exists || (product.data() as any)?.trackInventory === false) continue;
+          const data: any = product.data();
+          const inventory = Number(data.inventory || 0) + (quantities.get(product.id) || 0);
+          transaction.update(product.ref, { inventory, status: inventory === 0 ? 'Out of Stock' : inventory <= Number(data.lowStockThreshold || 0) ? 'Low Stock' : 'Active', updatedAt: FieldValue.serverTimestamp() });
+        }
+      }
+      const patch: Record<string, any> = { ...providerFields, paymentStatus: 'refunded', refundedAt: FieldValue.serverTimestamp(), ...(order.inventoryRestoredAt ? {} : { inventoryRestoredAt: FieldValue.serverTimestamp() }), audit: FieldValue.arrayUnion({ action: 'provider_refund_confirmed', actorId: 'system', at: new Date().toISOString() }) };
       if (order.status === 'refund_approved') patch.status = 'refunded';
       transaction.update(ref, patch);
       result.changed = true;
@@ -95,7 +122,7 @@ export async function applyPaymentEvent(
   });
 
   // Mirror the verified event onto the payment ledger. Never let a ledger problem undo a confirmed payment.
-  if (result.found && result.changed && result.order) {
+  if (result.found && result.changed && result.order && !result.mismatch) {
     try { await syncLedgerForOrder(db, result.order, kind, meta); }
     catch (error) { console.error(`Ledger sync failed for order ${orderId}:`, error); }
   }

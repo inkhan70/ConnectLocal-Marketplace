@@ -1,13 +1,19 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
+import crypto from 'crypto';
 
 export type PaymentStatus = 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded' | 'cancelled';
 
 export async function createPendingTransaction(db: Firestore, input: { orderId: string; buyerId?: string; sellerId?: string; provider: string; country: string; currency: string; amountMinor: number; platformFeeMinor: number; idempotencyKey: string; }) {
+  // Preserve compatibility with older random-ID rows, then use a deterministic ID plus a transaction for new rows.
   const existing = await db.collection('paymentTransactions').where('idempotencyKey', '==', input.idempotencyKey).limit(1).get();
   if (!existing.empty) return existing.docs[0];
-  const ref = db.collection('paymentTransactions').doc();
-  await ref.set({ ...input, sellerAmountMinor: input.amountMinor - input.platformFeeMinor, status: 'pending' satisfies PaymentStatus, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  const id = crypto.createHash('sha256').update(input.idempotencyKey).digest('hex').slice(0, 40);
+  const ref = db.collection('paymentTransactions').doc(id);
+  await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(ref);
+    if (!current.exists) transaction.create(ref, { ...input, sellerAmountMinor: Math.max(0, input.amountMinor - input.platformFeeMinor), status: 'pending' satisfies PaymentStatus, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  });
   return ref;
 }
 

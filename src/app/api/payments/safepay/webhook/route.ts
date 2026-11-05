@@ -25,25 +25,31 @@ export async function POST(request: NextRequest) {
 
     let body: any;
     try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 }); }
+    const db = getAdminDb();
+    await db.collection('paymentProviderConfigs').doc('safepay_GLOBAL').set({ providerId: 'safepay', country: 'GLOBAL', webhookVerifiedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
     const event = parseSafepayEvent(body);
     if (!event) return NextResponse.json({ received: true, ignored: 'no tracker' });
 
-    const db = getAdminDb();
     const found = await db.collection('orders').where('paymentTracker', '==', event.tracker).limit(1).get();
     if (found.empty) return NextResponse.json({ error: 'Order not found for this tracker.' }, { status: 404 }); // Safepay retries
     const orderId = found.docs[0].id;
     if (found.docs[0].data().paymentMethod !== 'safepay') return NextResponse.json({ received: true, ignored: 'not a Safepay order' });
 
-    if (event.state !== 'PAID') return NextResponse.json({ received: true, ignored: `state ${event.state || 'unknown'}` });
+    const failureStates = new Set(['FAILED', 'DECLINED', 'CANCELLED', 'CANCELED', 'EXPIRED']);
+    const refundStates = new Set(['REFUNDED', 'PARTIALLY_REFUNDED', 'CHARGEBACK']);
+    if (event.state === 'PAID' && (event.amountMinor == null || !event.currency)) return NextResponse.json({ error: 'Safepay event is missing amount or currency.' }, { status: 422 });
+    if (event.state !== 'PAID' && !failureStates.has(event.state) && !refundStates.has(event.state)) return NextResponse.json({ received: true, ignored: `state ${event.state || 'unknown'}` });
 
+    const kind: 'paid' | 'refunded' | 'failed' = event.state === 'PAID' ? 'paid' : refundStates.has(event.state) ? 'refunded' : 'failed';
     const result = await applyPaymentEvent(
-      db, orderId, 'paid',
+      db, orderId, kind,
       { provider: 'safepay', sessionId: event.tracker, transactionId: event.reference, providerFeeMinor: event.feeMinor, providerNetMinor: event.netMinor },
-      { amountMinor: event.amountMinor, currency: event.currency },
+      kind === 'paid' ? { amountMinor: event.amountMinor, currency: event.currency } : undefined,
     );
     if (result.mismatch) console.error(`Safepay payment for order ${orderId} did not match the order total/currency; order left unpaid and flagged.`);
     if (result.changed) {
-      await notifyOrderParties({ ...result.order, id: orderId }, { title: 'Payment received', body: `Payment for order ${orderId} was confirmed.`, type: 'payment_received' });
+      const title = kind === 'paid' ? 'Payment received' : kind === 'refunded' ? 'Payment refunded' : 'Payment failed';
+      await notifyOrderParties({ ...result.order, id: orderId }, { title, body: `Payment for order ${orderId} was ${kind === 'paid' ? 'confirmed' : kind}.`, type: kind === 'paid' ? 'payment_received' : 'payment_failed' });
     }
     return NextResponse.json({ received: true, changed: result.changed });
   } catch (error) {
