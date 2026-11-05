@@ -62,6 +62,22 @@ Safepay is offered at checkout only when all three secrets are present, because 
 marks a Safepay order paid** (signature `X-SFPY-SIGNATURE` = HMAC-SHA512 of the raw body; amount and currency are checked
 against the order). The seller's `currencyCode` must be `PKR`. See `docs/TESTING_PAYMENTS.md` to test it end to end.
 
+
+## Go-live checklist: why do buyers only see Cash on Delivery?
+
+A provider appears in the buyer's checkout only when **all** of these are true. Admin -> **Payment Providers** shows each one
+as a green tick or a red cross, with the fix, for any country/currency you choose under "What buyers see".
+
+1. **Server credentials** are set in the deployment (Safepay: `SAFEPAY_SECRET_KEY`, `SAFEPAY_PUBLIC_KEY`, `SAFEPAY_WEBHOOK_SECRET`) and the app was redeployed.
+2. The provider **supports the seller's country and currency** (Safepay: Pakistan / PKR only).
+3. **Enabled** by the admin, and **Merchant approved** ticked once the provider approved your merchant account.
+4. Safepay only: the **webhook is verified**. Add `https://YOUR-DOMAIN/api/payments/safepay/webhook` in the Safepay dashboard and send a
+   test event (or run `scripts/simulate-safepay-webhook.cjs`); the first correctly signed webhook turns this green.
+5. The **seller has confirmed their business country and currency** on Dashboard -> Payments (e.g. PK / PKR). Until then the seller
+   counts as "US / USD" and customers only get Cash on Delivery. The member page shows a banner and what customers can currently pay with.
+
+Buyer lists are cached for about a minute, so a change can take a minute or two to appear.
+
 ## Member earnings and payouts
 
 Online payments (Stripe / PayPal / Safepay) are collected by the platform. Each one has a ledger row

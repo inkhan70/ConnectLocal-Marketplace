@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { DEFAULT_PROVIDER_CAPABILITIES, getCountrySuggestion } from '@/lib/server/provider-capabilities';
-import { getEnabledPaymentMethods, isPaymentMethodAvailable } from '@/lib/server/payment-config';
+import { getEnabledPaymentMethods, isPaymentMethodAvailable, sellerPaymentProfile } from '@/lib/server/payment-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,9 +16,8 @@ export async function GET(request: NextRequest) {
     const db = getAdminDb();
     if (sellerId) {
       const seller = await db.collection('users').doc(sellerId).get();
-      const sellerData = seller.data() as any;
-      if (sellerData?.countryCode) country = String(sellerData.countryCode).toUpperCase();
-      if (sellerData?.currencyCode) currency = String(sellerData.currencyCode).toUpperCase();
+      // Same resolver as order creation, so the list a buyer sees is exactly what the order API will accept.
+      if (seller.exists) { const profile = sellerPaymentProfile(seller.data()); country = profile.country; currency = profile.currency; }
     }
     const methods = [];
     for (const method of configuredMethods) {
@@ -28,6 +27,7 @@ export async function GET(request: NextRequest) {
   } catch {
     // The buyer UI can still show credential-backed choices during local preview; the order API remains authoritative.
     const methods = configuredMethods.filter((method) => {
+      if (process.env.NODE_ENV === 'production') return method.value === 'cod'; // never offer an unchecked provider live
       const capability = DEFAULT_PROVIDER_CAPABILITIES.find((provider) => provider.id === method.value);
       return capability && (capability.countries.includes('*') || capability.countries.includes(country)) && (capability.currencies.includes('*') || capability.currencies.includes(currency));
     });

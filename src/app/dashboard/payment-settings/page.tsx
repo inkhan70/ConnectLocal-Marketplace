@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-type Settings = { country: string; currency: string; providers: Array<{ id: string; label: string; marketplace: boolean; status: string; note: string; currencies: string[] }>; accounts: Array<{ provider: string; status: string }> };
+type Settings = { country: string; currency: string; confirmed?: boolean; effective?: { country: string; currency: string }; customerMethods?: Array<{ value: string; label: string; available: boolean; reason: string | null }>; providers: Array<{ id: string; label: string; marketplace: boolean; status: string; note: string; currencies: string[] }>; accounts: Array<{ provider: string; status: string }> };
 
 export default function PaymentSettingsPage() {
   const { user } = useAuth();
@@ -32,7 +32,10 @@ export default function PaymentSettingsPage() {
       const response = await fetch("/api/payments/settings", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ country, currency }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setSettings((current) => current ? { ...current, country, currency } : current);
+      setSettings((current) => current ? { ...current, country, currency, confirmed: true } : current);
+      // Re-read what customers will now be offered.
+      const token2 = await user.getIdToken();
+      fetch("/api/payments/settings", { headers: { Authorization: `Bearer ${token2}` } }).then((r) => r.json()).then((fresh) => { if (!fresh.error) setSettings(fresh); }).catch(() => {});
       toast({ title: "Payment settings saved", description: "Provider availability will use this verified business country." });
     } catch (error) { toast({ title: "Could not save settings", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" }); }
     finally { setSaving(false); }
@@ -41,6 +44,8 @@ export default function PaymentSettingsPage() {
   if (!settings) return <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   return <div className="mx-auto flex max-w-4xl flex-col gap-6">
     <div><h1 className="text-2xl font-bold">Payment Settings</h1><p className="text-muted-foreground">Configure your verified business country, payout currency, and provider readiness.</p></div>
+    {settings.confirmed === false && <Card className="border-amber-500/60"><CardHeader><CardTitle>Confirm your business country and currency</CardTitle><CardDescription>Until you save them below, your customers can only pay with Cash on Delivery. We pre-filled a suggestion from your location ({settings.country} / {settings.currency}); check it and press Save.</CardDescription></CardHeader></Card>}
+    <Card><CardHeader><CardTitle>What your customers can pay with</CardTitle><CardDescription>Based on your confirmed country and currency ({settings.effective ? `${settings.effective.country} / ${settings.effective.currency}` : `${settings.country} / ${settings.currency}`}).</CardDescription></CardHeader><CardContent className="space-y-2 text-sm">{(settings.customerMethods || []).map((method) => <div key={method.value} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"><span className="font-medium">{method.label}</span>{method.available ? <Badge>Available</Badge> : <span className="text-muted-foreground">{method.reason}</span>}</div>)}</CardContent></Card>
     <Card><CardHeader><CardTitle>Business payment profile</CardTitle><CardDescription>IP detection is only a suggestion. Your selected country must match your verified business information.</CardDescription></CardHeader><CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end"><label className="flex flex-1 flex-col gap-2 text-sm font-medium">Country code<Input value={country} maxLength={2} onChange={(event) => setCountry(event.target.value.toUpperCase())} /></label><label className="flex flex-1 flex-col gap-2 text-sm font-medium">Currency<Input value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></label><Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button></CardContent></Card>
     <div className="grid gap-4 md:grid-cols-2">{settings.providers.map((provider) => <Card key={provider.id}><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle className="text-lg">{provider.label}</CardTitle><Badge variant={provider.status === "enabled" ? "secondary" : "outline"}>{provider.status === "enabled" ? "Available" : "Review required"}</Badge></div><CardDescription>{provider.note}</CardDescription></CardHeader><CardContent className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">{provider.marketplace ? `Marketplace: ${provider.currencies.join(", ")}` : "Marketplace settlement not enabled"}</span>{provider.marketplace && <Button variant="outline" disabled><ShieldCheck className="mr-2 h-4 w-4" />Verification</Button>}</CardContent></Card>)}</div>
   </div>;

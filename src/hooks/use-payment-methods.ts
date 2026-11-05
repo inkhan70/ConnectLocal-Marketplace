@@ -13,8 +13,8 @@ export function usePaymentMethods(context?: { country?: string; currency?: strin
   const sellerId = context?.sellerId;
   const currency = context?.currency?.toUpperCase();
   const cacheKey = `${sellerId || ""}:${country || ""}:${currency || ""}`;
-  const [methods, setMethods] = useState<PaymentMethodOption[]>(cached?.methods ?? FALLBACK);
-  const [isLoading, setIsLoading] = useState(!cached);
+  const [methods, setMethods] = useState<PaymentMethodOption[]>(cached && cached.key === cacheKey ? cached.methods : FALLBACK);
+  const [isLoading, setIsLoading] = useState(!(cached && cached.key === cacheKey));
 
   useEffect(() => {
     if (cached && cached.key === cacheKey && Date.now() - cached.at < 60_000) { setMethods(cached.methods); setIsLoading(false); return; }
@@ -33,7 +33,7 @@ export function usePaymentMethods(context?: { country?: string; currency?: strin
       .catch(() => { if (!cancelled) setMethods(FALLBACK); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
     return () => { cancelled = true; };
-  }, [country, currency]);
+  }, [country, currency, sellerId]);
 
   return { methods, isLoading };
 }

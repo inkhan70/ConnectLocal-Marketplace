@@ -57,21 +57,81 @@ function credentialsReady(method: string, env: NodeJS.ProcessEnv): boolean {
   return method === 'cod';
 }
 
-export async function isPaymentMethodAvailable(db: Firestore, method: string, country: string, currency: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
-  if (!credentialsReady(method, env)) return false;
-  if (method === 'cod') return true;
-  const normalizedCountry = country.toUpperCase();
-  const normalizedCurrency = currency.toUpperCase();
+const CREDENTIAL_HINT: Record<string, string> = {
+  stripe: 'Set STRIPE_SECRET_KEY in the deployment environment.',
+  paypal: 'Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the deployment environment.',
+  safepay: 'Set SAFEPAY_SECRET_KEY, SAFEPAY_PUBLIC_KEY and SAFEPAY_WEBHOOK_SECRET in the deployment environment, then redeploy.',
+};
+
+/**
+ * The country / currency a SELLER sells in. The member confirms it on Dashboard -> Payments (`businessCountry`,
+ * `businessCurrency`); that always wins. Older profile fields (`countryCode`, `currencyCode`) are the fallback. Every
+ * place that asks "which payment methods apply to this seller?" (buyer list, order creation, member page) uses THIS
+ * function, so the answer cannot differ between screens.
+ */
+export function sellerPaymentProfile(seller: any, fallback: { country?: string; currency?: string } = {}): { country: string; currency: string; confirmed: boolean } {
+  const confirmedCountry = /^[A-Za-z]{2}$/.test(String(seller?.businessCountry || '')) ? String(seller.businessCountry).toUpperCase() : '';
+  const confirmedCurrency = /^[A-Za-z]{3}$/.test(String(seller?.businessCurrency || '')) ? String(seller.businessCurrency).toUpperCase() : '';
+  const profileCountry = /^[A-Za-z]{2}$/.test(String(seller?.countryCode || seller?.country || '')) ? String(seller.countryCode || seller.country).toUpperCase() : '';
+  const profileCurrency = /^[A-Za-z]{3}$/.test(String(seller?.currencyCode || '')) ? String(seller.currencyCode).toUpperCase() : '';
+  const currency = confirmedCurrency || (confirmedCountry === 'PK' && !profileCurrency ? 'PKR' : profileCurrency) || (fallback.currency || '').toUpperCase() || 'USD';
+  const country = confirmedCountry || profileCountry || (currency === 'PKR' ? 'PK' : (fallback.country || '').toUpperCase()) || 'US';
+  return { country, currency, confirmed: Boolean(confirmedCountry && confirmedCurrency) };
+}
+
+type StoredConfig = { enabled?: boolean; merchantApproved?: boolean; currencies?: string[]; webhookVerifiedAt?: string | null; [key: string]: unknown };
+
+/**
+ * Effective admin configuration for a provider in a country. A country document overrides the GLOBAL one only for the
+ * fields it actually sets, and webhook verification belongs to the integration (not to a country), so it is read from
+ * either document.
+ */
+export async function loadEffectiveProviderConfig(db: Firestore, method: string, country: string): Promise<StoredConfig | null> {
   const [globalSnap, countrySnap] = await Promise.all([
     db.collection('paymentProviderConfigs').doc(`${method}_GLOBAL`).get(),
-    db.collection('paymentProviderConfigs').doc(`${method}_${normalizedCountry}`).get(),
+    db.collection('paymentProviderConfigs').doc(`${method}_${country.toUpperCase()}`).get(),
   ]);
-  const config = countrySnap.exists ? countrySnap.data() as any : globalSnap.exists ? globalSnap.data() as any : null;
-  if (config && config.enabled !== true) return false;
-  if (config?.currencies?.length && !config.currencies.includes(normalizedCurrency)) return false;
-  if (config && config.merchantApproved !== true) return false;
+  const g = globalSnap.exists ? (globalSnap.data() as StoredConfig) : null;
+  const c = countrySnap.exists ? (countrySnap.data() as StoredConfig) : null;
+  if (!g && !c) return null;
+  const merged: StoredConfig = { ...(g || {}) };
+  for (const [key, value] of Object.entries(c || {})) if (value !== undefined) merged[key] = value;
+  if (!c?.currencies?.length) merged.currencies = g?.currencies || [];
+  merged.webhookVerifiedAt = c?.webhookVerifiedAt || g?.webhookVerifiedAt || null;
+  return merged;
+}
+
+export interface ReadinessCheck { key: string; label: string; ok: boolean; detail?: string }
+export interface ProviderReadiness { method: string; available: boolean; reason: string | null; checks: ReadinessCheck[] }
+
+/** Every requirement for a provider to be offered to buyers, and which ones are not met yet. Single source of truth. */
+export async function getProviderReadiness(db: Firestore, method: string, country: string, currency: string, env: NodeJS.ProcessEnv = process.env): Promise<ProviderReadiness> {
+  const normalizedCountry = country.toUpperCase();
+  const normalizedCurrency = currency.toUpperCase();
+  const checks: ReadinessCheck[] = [];
+  if (method === 'cod') return { method, available: true, reason: null, checks: [{ key: 'cod', label: 'Cash on Delivery needs no setup', ok: true }] };
+
+  checks.push({ key: 'credentials', label: 'Server credentials configured', ok: credentialsReady(method, env), detail: CREDENTIAL_HINT[method] });
+
   const capability = DEFAULT_PROVIDER_CAPABILITIES.find((provider) => provider.id === method);
-  if (!capability || !(capability.countries.includes('*') || capability.countries.includes(normalizedCountry)) || !(capability.currencies.includes('*') || capability.currencies.includes(normalizedCurrency))) return false;
-  if (method === 'safepay' && config && !config.webhookVerifiedAt) return false;
-  return true;
+  const countryOk = Boolean(capability && (capability.countries.includes('*') || capability.countries.includes(normalizedCountry)));
+  const currencyOk = Boolean(capability && (capability.currencies.includes('*') || capability.currencies.includes(normalizedCurrency)));
+  checks.push({ key: 'region', label: `Supports ${normalizedCountry} / ${normalizedCurrency}`, ok: countryOk && currencyOk, detail: capability ? `${capability.label} supports ${capability.countries.join(', ')} in ${capability.currencies.join(', ')}.` : 'Provider has no adapter in this app yet.' });
+
+  const config = await loadEffectiveProviderConfig(db, method, normalizedCountry);
+  const mustBeConfigured = method === 'safepay'; // Safepay is never offered until the admin has approved it and its webhook has been seen
+  if (mustBeConfigured || config) {
+    checks.push({ key: 'enabled', label: 'Enabled by admin', ok: config?.enabled === true, detail: 'Admin -> Payment Providers: switch the provider on.' });
+    checks.push({ key: 'approved', label: 'Merchant approved', ok: config?.merchantApproved === true, detail: 'Admin -> Payment Providers: tick "Merchant approved" once the provider has approved your merchant account.' });
+    if (config?.currencies?.length) checks.push({ key: 'config_currency', label: `Admin currencies include ${normalizedCurrency}`, ok: config.currencies.includes(normalizedCurrency), detail: `Allowed by admin: ${config.currencies.join(', ')}.` });
+  }
+  if (method === 'safepay') {
+    checks.push({ key: 'webhook', label: 'Webhook verified', ok: Boolean(config?.webhookVerifiedAt), detail: 'Add the webhook endpoint in the Safepay dashboard and send a test event (or run scripts/simulate-safepay-webhook.cjs). It turns green after the first correctly signed webhook.' });
+  }
+  const failing = checks.find((check) => !check.ok);
+  return { method, available: !failing, reason: failing ? `${failing.label}: not met. ${failing.detail || ''}`.trim() : null, checks };
+}
+
+export async function isPaymentMethodAvailable(db: Firestore, method: string, country: string, currency: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  return (await getProviderReadiness(db, method, country, currency, env)).available;
 }
