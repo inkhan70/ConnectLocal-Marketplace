@@ -18,7 +18,7 @@ import { useAuth, UserProfile } from '@/contexts/AuthContext';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { usePublicBusiness } from '@/hooks/use-public-business';
 import { ContactSeller } from '@/components/ContactSeller';
-import { collection, query, where, addDoc, serverTimestamp, doc, getDocs } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
 import { useRouter } from 'next/navigation';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -124,14 +124,17 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
     }
 
     try {
-      const chatsRef = collection(firestore, "chats");
-      const q = query(chatsRef, where('participants', 'array-contains', user.uid));
-      const querySnapshot = await getDocs(q);
-      
+      const token = await user.getIdToken();
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetId: product.userId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start chat.");
+
       const businessUserProfile = sellerProfile as UserProfile | null;
-      if (!businessUserProfile) {
-          throw new Error("Could not find business owner's profile.");
-      }
+      if (!businessUserProfile) throw new Error("Could not find business owner's profile.");
 
       await recordContact({
         id: product.userId,
@@ -141,26 +144,7 @@ export default function ItemDetailPage({ params }: { params: { itemId: string } 
         dataAiHint: "storefront",
       });
 
-      const existingChatId = querySnapshot.docs.find((chatSnap) => {
-        const chatData = chatSnap.data();
-        return Array.isArray(chatData.participants) && chatData.participants.includes(product.userId);
-      })?.id || null;
-
-      if (existingChatId) {
-        router.push(`/dashboard/chat?chatId=${existingChatId}`);
-        return;
-      }
-
-      const newChatRef = await addDoc(chatsRef, {
-        participants: [user.uid, product.userId],
-        participantProfiles: {
-          [user.uid]: { name: userProfile.fullName || userProfile.businessName || "User", role: userProfile.role },
-          [product.userId]: { name: businessUserProfile.businessName || "Business", role: businessUserProfile.role },
-        },
-        lastMessage: "Chat started...",
-        lastMessageTimestamp: serverTimestamp(),
-      });
-      router.push(`/dashboard/chat?chatId=${newChatRef.id}`);
+      router.push(`/dashboard/chat?chatId=${encodeURIComponent(result.chatId)}`);
       
     } catch (error) {
       console.error("Error starting chat:", error);

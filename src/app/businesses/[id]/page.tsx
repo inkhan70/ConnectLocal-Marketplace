@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, MapPin, Navigation, Stethoscope, Store, Heart, MessageSquare } from "lucide-react";
-import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { usePublicBusiness } from "@/hooks/use-public-business";
 import { ContactSeller } from "@/components/ContactSeller";
@@ -77,12 +77,14 @@ export default function BusinessProfilePage() {
     }
     if (user.uid === profile.uid) return;
     try {
-      const chatsRef = collection(firestore, "chats");
-      const snapshot = await getDocs(query(chatsRef, where("participants", "array-contains", user.uid)));
-      const existing = snapshot.docs.find((item) => {
-        const participants = item.data().participants;
-        return Array.isArray(participants) && participants.includes(profile.uid);
+      const token = await user.getIdToken();
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetId: profile.uid }),
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start conversation.");
 
       await recordContact({
         id: profile.uid,
@@ -94,21 +96,7 @@ export default function BusinessProfilePage() {
         role: profile.role,
       });
 
-      if (existing) {
-        router.push(`/dashboard/chat?chatId=${existing.id}`);
-        return;
-      }
-
-      const newChat = await addDoc(chatsRef, {
-        participants: [user.uid, profile.uid],
-        participantProfiles: {
-          [user.uid]: { name: userProfile.fullName || userProfile.businessName || "User", role: userProfile.role },
-          [profile.uid]: { name: profile.businessName || profile.fullName || "Business", role: profile.role },
-        },
-        lastMessage: "Chat started...",
-        lastMessageTimestamp: serverTimestamp(),
-      });
-      router.push(`/dashboard/chat?chatId=${newChat.id}`);
+      router.push(`/dashboard/chat?chatId=${encodeURIComponent(result.chatId)}`);
     } catch (error) {
       console.error("Failed to start business chat", error);
       toast({ title: "Could not contact business", description: "Please try again.", variant: "destructive" });
